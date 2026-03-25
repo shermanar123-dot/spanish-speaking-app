@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  spanish-app:
+    build: .
+    ports:
+      - "127.0.0.1:8000:3000"
+    env_file:
+      - .env
+    environment:
+      - FRONTEND_URL=http://localhost:8000
+    volumes:
+      # Mount the database file to persist progress across container restarts
+      # If app.db doesn't exist locally yet, Docker will create a directory.
+      # Make sure to run the app locally at least once or touch app.db first.
+      - ./app.db:/usr/src/app/app.db
+    restart: unless-stopped

@@ -1,0 +1,9 @@
+node_modules
+npm-debug.log
+.env
+app.db
+server.log
+.git
+.gitignore
+PLAN.md
+README.md
