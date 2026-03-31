@@ -378,8 +378,36 @@ async function generateDrills() {
       body: JSON.stringify({ verb, tense, pattern })
     });
     const data = await res.json();
-    lastDrills = data;
+    lastDrills = data.drills;
     
+    const conj = data.conjugation;
+    const formatConj = (val) => {
+      if (Array.isArray(val) && val.length === 2) {
+        return `<span style="color:var(--text-main);">${val[0]}</span><span style="color:#ef4444; font-weight:900;">${val[1]}</span>`;
+      }
+      return val;
+    };
+
+    const conjHTML = conj ? `
+      <div class="card" style="margin-top: 15px; background: rgba(0,0,0,0.02); border: 1px dashed var(--border-color);">
+        <div class="card-label" style="background: var(--primary); color: white;">Conjugation Table: ${conj.verb}</div>
+        <div class="card-body">
+          <div style="font-size: 12px; text-transform: uppercase; color: var(--text-light); font-weight: 800; margin-bottom: 8px;">${conj.tense} · ${conj.type}</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, auto); grid-auto-flow: column; gap: 8px; margin-bottom: 12px;">
+            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">YO</span><br><strong style="font-size:16px;">${formatConj(conj.yo)}</strong></div>
+            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">TÚ</span><br><strong style="font-size:16px;">${formatConj(conj.tu)}</strong></div>
+            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">ÉL/ELLA/UD.</span><br><strong style="font-size:16px;">${formatConj(conj.el_ella_usted)}</strong></div>
+            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">NOSOTROS/AS</span><br><strong style="font-size:16px;">${formatConj(conj.nosotros_as)}</strong></div>
+            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">VOSOTROS/AS</span><br><strong style="font-size:16px;">${formatConj(conj.vosotros_as)}</strong></div>
+            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">ELLOS/ELLAS/UDS.</span><br><strong style="font-size:16px;">${formatConj(conj.ellos_ellas_ustedes)}</strong></div>
+          </div>
+          <div style="font-size: 13px; line-height: 1.4; color: var(--text-main); padding: 10px; background: white; border-radius: 8px; border: 1px solid var(--border-color);">
+            <strong>Rule:</strong> ${conj.rule_explanation}
+          </div>
+        </div>
+      </div>
+    ` : '';
+
     out.innerHTML = `<div class="card">
       <div class="card-label">${verb} · ${tense} · ${pattern}</div>
       <div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap;">
@@ -387,13 +415,14 @@ async function generateDrills() {
         <button class="gen-btn" style="flex:1; background:var(--warning); border-bottom-color:var(--warning-shadow);" id="rapid-btn" onclick="startRapidFireDrills()">🚀 Rapid-Fire</button>
         <button class="gen-btn" style="flex:1; background:var(--incorrect); border-bottom-color:var(--incorrect-shadow); display:none;" id="stop-btn" onclick="stopSession()">⏹ Stop session</button>
       </div>
-      ${data.map((d,i) => `<div class="drill-item" onclick="this.classList.toggle('revealed')">
+      ${data.drills.map((d,i) => `<div class="drill-item" onclick="this.classList.toggle('revealed')">
         <div class="drill-es">${d.base}</div>
         <div class="drill-cue">Cue: <strong>${d.cue}</strong> &nbsp;·&nbsp; <span style="color:var(--text-light)">${d.translation}</span></div>
         <div class="drill-ans">→ ${d.answer} <button class="speaker-btn" style="position:relative;top:0;right:0;margin-left:8px" onclick="event.stopPropagation(); speakText('${d.answer.replace(/'/g, "\\'")}')">🔊</button></div>
       </div>`).join('')}
       <button class="reveal-all" style="width:100%; margin-top:10px; background:var(--bg-input); color:var(--text-main)" onclick="document.querySelectorAll('.drill-item').forEach(d=>d.classList.add('revealed'))">Reveal all answers</button>
-    </div>`;
+    </div>
+    ${conjHTML}`;
   } catch(e) {
     out.innerHTML = `<div class="card"><div class="card-body" style="color:red">Generation failed.</div></div>`;
   }
@@ -593,33 +622,5 @@ async function sendRpMsg() {
 // Init
 loadStatus();
 
-// Quick Translate
-async function quickTranslate() {
-  const input = document.getElementById('quick-translate-input');
-  const text = input.value.trim();
-  if (!text) return;
-  
-  const resultBox = document.getElementById('quick-translate-result');
-  const resultText = document.getElementById('quick-translate-text');
-  
-  resultBox.style.display = 'flex';
-  resultText.innerText = 'Translating...';
-  resultText.style.color = 'var(--text-muted)';
-  
-  try {
-    const res = await fetch('/api/translate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
-    });
-    if (!res.ok) throw new Error(await res.text());
-    const data = await res.json();
-    
-    resultText.innerText = data.translation;
-    resultText.style.color = 'var(--primary)';
-  } catch (e) {
-    resultText.innerText = 'Error translating.';
-    resultText.style.color = 'var(--incorrect)';
-  }
-}
+
 

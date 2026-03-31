@@ -179,10 +179,14 @@ app.post('/api/assessment', async (req, res) => {
 const VALID_VERBS = [
   "ser", "estar", "tener", "hacer", "poder", "decir", "ir", "ver", "dar", "saber",
   "querer", "llegar", "pasar", "deber", "poner", "parecer", "quedar", "creer",
-  "hablar", "llevar", "dejar", "seguir", "encontrar", "llamar", "venir"
+  "hablar", "llevar", "dejar", "seguir", "encontrar", "llamar", "venir",
+  "pensar", "salir", "volver", "tomar", "conocer", "vivir", "sentir", "tratar",
+  "mirar", "contar", "empezar", "esperar", "escribir", "buscar", "entrar",
+  "trabajar", "perder", "ocurrir", "entender", "pedir", "recibir", "recordar",
+  "terminar", "permitir", "aparecer"
 ];
 const VALID_TENSES = ["Present", "Preterite (Past)", "Imperfect (Past Continuous)", "Future", "Present Perfect", "Present Subjunctive"];
-const VALID_PATTERNS = ["Substitution", "Transformation", "Response", "Translation"];
+const VALID_PATTERNS = ["Substitution", "Transformation", "Response", "Translation", "Expansion"];
 const VALID_THEMES = [
   "café and food ordering", "shopping and markets", "travel and transport",
   "work and daily routine", "health and body", "hotel check-in", "airport and flights",
@@ -218,22 +222,6 @@ app.post('/api/generate/drills', async (req, res) => {
     // Update progress
     db.run('UPDATE progress SET drills_done = drills_done + 6 WHERE user_id = 1');
     res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// 3b. Quick Translate
-app.post('/api/translate', async (req, res) => {
-  const { text } = req.body;
-  if (!text || typeof text !== 'string' || text.length > 500) {
-    return res.status(400).json({ error: 'Text must be a string under 500 characters.' });
-  }
-
-  const systemPrompt = 'You are a precise English to Spanish translator. Provide ONLY the direct, natural Spanish translation of the given English text. Do not add any conversational filler, punctuation if it wasn\'t there, or explanations.';
-  try {
-    const translation = await callGemini(systemPrompt, text);
-    res.json({ translation: translation.trim() });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

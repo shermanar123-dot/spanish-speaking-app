@@ -37,16 +37,34 @@ Drill Patterns explained:
 - Transformation: Change the sentence based on the cue (e.g., change to past tense, or singular to plural).
 - Response: Answer a question using the cue.
 - Translation: Translate the English cue to Spanish.
+- Expansion: Start with a simple sentence and add the cue to make it more complex/longer (e.g., "Yo como" + "en el restaurante" -> "Yo como en el restaurante").
 
-Return ONLY a JSON array of 6 objects, exactly like this format:
-[
-  {
-    "base": "The base sentence in Spanish (or English if translation)",
-    "cue": "The substitution/transformation cue",
-    "answer": "The full correct sentence in Spanish",
-    "translation": "English translation of the answer"
+Return ONLY a JSON object with two keys: "drills" (array of 6 objects) and "conjugation" (object with the conjugation table for the target verb and tense).
+
+JSON Format:
+{
+  "drills": [
+    {
+      "base": "The base sentence in Spanish (or English if translation)",
+      "cue": "The substitution/transformation/expansion cue",
+      "answer": "The full correct sentence in Spanish",
+      "translation": "English translation of the answer"
+    }
+  ],
+  "conjugation": {
+    "verb": "${verb}",
+    "tense": "${tense}",
+    "yo": ["stem", "ending"],
+    "tu": ["stem", "ending"],
+    "el_ella_usted": ["stem", "ending"],
+    "nosotros_as": ["stem", "ending"],
+    "vosotros_as": ["stem", "ending"],
+    "ellos_ellas_ustedes": ["stem", "ending"],
+    "type": "AR verb | ER verb | IR verb | Irregular",
+    "rule_explanation": "A brief explanation of the conjugation rules for this verb type in this tense."
   }
-]
+}
+CRITICAL: For the conjugation pronouns, output an array of exactly two strings: the stem and the ending (the part that changes to match the pronoun). Example for "como": ["com", "o"]. For irregulars like "voy", output ["v", "oy"]. If the whole word is irregular like "fui", output ["", "fui"].
 Do not include markdown blocks or any other text.`;
   },
 

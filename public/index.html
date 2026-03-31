@@ -146,6 +146,31 @@
         <option value="encontrar">encontrar (to find)</option>
         <option value="llamar">llamar (to call)</option>
         <option value="venir">venir (to come)</option>
+        <option value="pensar">pensar (to think)</option>
+        <option value="salir">salir (to leave/go out)</option>
+        <option value="volver">volver (to return)</option>
+        <option value="tomar">tomar (to take/drink)</option>
+        <option value="conocer">conocer (to know - people/places)</option>
+        <option value="vivir">vivir (to live)</option>
+        <option value="sentir">sentir (to feel)</option>
+        <option value="tratar">tratar (to try/treat)</option>
+        <option value="mirar">mirar (to look)</option>
+        <option value="contar">contar (to count/tell)</option>
+        <option value="empezar">empezar (to start)</option>
+        <option value="esperar">esperar (to wait/hope)</option>
+        <option value="escribir">escribir (to write)</option>
+        <option value="buscar">buscar (to look for)</option>
+        <option value="entrar">entrar (to enter)</option>
+        <option value="trabajar">trabajar (to work)</option>
+        <option value="perder">perder (to lose)</option>
+        <option value="ocurrir">ocurrir (to occur/happen)</option>
+        <option value="entender">entender (to understand)</option>
+        <option value="pedir">pedir (to ask for)</option>
+        <option value="recibir">recibir (to receive)</option>
+        <option value="recordar">recordar (to remember)</option>
+        <option value="terminar">terminar (to finish)</option>
+        <option value="permitir">permitir (to allow)</option>
+        <option value="aparecer">aparecer (to appear)</option>
       </select>
       <select id="drill-tense">
         <option value="Present">Present</option>
@@ -160,6 +185,7 @@
         <option value="Transformation">Transformation</option>
         <option value="Response">Response</option>
         <option value="Translation">Translation</option>
+        <option value="Expansion">Expansion</option>
       </select>
       <select id="rapid-speed" title="Rapid Fire Speed">
         <option value="3000">Speed: 3s</option>
@@ -203,18 +229,6 @@
       </div>
     </div>
 
-    <!-- Quick Translate Box -->
-    <div class="card" style="margin-top: 1rem;">
-      <div class="card-label">Quick Translate</div>
-      <div style="display:flex; gap: 8px;">
-        <input type="text" id="quick-translate-input" placeholder="Type in English..." style="flex:1" onkeydown="if(event.key==='Enter')quickTranslate()">
-        <button class="gen-btn" onclick="quickTranslate()">Translate</button>
-      </div>
-      <div id="quick-translate-result" style="display:none; margin-top: 12px; font-weight: bold; font-size: 1.1em; color: var(--primary); display: flex; align-items: center; justify-content: space-between; padding: 10px; background: rgba(0,0,0,0.03); border-radius: 8px;">
-        <span id="quick-translate-text"></span>
-        <button class="speaker-btn" style="position:relative;top:0;right:0;margin-left:8px" onclick="speakText(document.getElementById('quick-translate-text').innerText)" title="Listen">🔊</button>
-      </div>
-    </div>
   </div>
 
   <!-- ROLEPLAY -->
