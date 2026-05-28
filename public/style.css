@@ -1,30 +1,47 @@
 @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&display=swap');
 
 :root {
-  --primary: #6C63FF;
-  --primary-hover: #5A52D5;
-  --primary-shadow: #4A43B5;
-  --primary-light: #E8E6FF;
-  --secondary: #FF6B6B;
-  --secondary-hover: #E05555;
-  --secondary-shadow: #C04444;
-  --secondary-light: #FFE8E8;
-  --accent-yellow: #FFD93D;
-  --accent-purple: #C084FC;
-  --accent-teal: #48C9B0;
-  --accent-orange: #FF8A5C;
-  --correct: #48C9B0;
-  --incorrect: #FF6B6B;
-  --incorrect-shadow: #D05555;
-  --warning: #FFD93D;
-  --warning-shadow: #D4B82E;
-  --bg-body: #FFF8F0;
+  --duo-green: #58CC02;
+  --duo-green-hover: #46A302;
+  --duo-green-shadow: #3A8A02;
+  --duo-green-light: #E5F5D1;
+  --duo-blue: #1CB0F6;
+  --duo-blue-hover: #1899D6;
+  --duo-blue-shadow: #1479B0;
+  --duo-blue-light: #D6F0FF;
+  --duo-orange: #FF9600;
+  --duo-orange-hover: #E08500;
+  --duo-orange-shadow: #C47600;
+  --duo-orange-light: #FFEFD6;
+  --duo-gold: #FFC800;
+  --duo-gold-hover: #E0B000;
+  --duo-gold-shadow: #C49A00;
+  --duo-gold-light: #FFF5D6;
+
+  --primary: var(--duo-green);
+  --primary-hover: var(--duo-green-hover);
+  --primary-shadow: var(--duo-green-shadow);
+  --primary-light: var(--duo-green-light);
+  --secondary: var(--duo-blue);
+  --secondary-hover: var(--duo-blue-hover);
+  --secondary-shadow: var(--duo-blue-shadow);
+  --secondary-light: var(--duo-blue-light);
+  --accent-yellow: var(--duo-gold);
+  --accent-purple: #CE82FF;
+  --accent-teal: #00CD9C;
+  --accent-orange: var(--duo-orange);
+  --correct: #58CC02;
+  --incorrect: #FF4B4B;
+  --incorrect-shadow: #D04040;
+  --warning: var(--duo-gold);
+  --warning-shadow: var(--duo-gold-shadow);
+  --bg-body: #FAFAF8;
   --bg-surface: #ffffff;
-  --bg-input: #FFF5EB;
-  --text-main: #2D2B55;
-  --text-muted: #6B6894;
-  --text-light: #A09CC2;
-  --border-color: #E8E3F0;
+  --bg-input: #F5F5F2;
+  --text-main: #2B2B2B;
+  --text-muted: #777777;
+  --text-light: #AAAAAA;
+  --border-color: #E5E5E0;
   --radius-sm: 12px;
   --radius-md: 16px;
   --radius-lg: 24px;
@@ -34,6 +51,7 @@
   --header-height: 56px;
   --ring-size: 120px;
   --ring-stroke: 10px;
+  --font-display: 'Quicksand', 'Nunito', -apple-system, system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -52,7 +70,7 @@ body {
 .auth-overlay {
   position: fixed;
   inset: 0;
-  background: linear-gradient(135deg, #6C63FF 0%, #FF6B6B 50%, #C084FC 100%);
+  background: linear-gradient(135deg, #1CB0F6 0%, #58CC02 50%, #00CD9C 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -139,7 +157,7 @@ body {
 }
 
 .auth-switch a {
-  color: var(--primary);
+  color: var(--secondary);
   font-weight: 800;
   text-decoration: none;
 }
@@ -171,19 +189,17 @@ body {
 .app-title {
   font-size: 20px;
   font-weight: 800;
-  background: linear-gradient(90deg, #6C63FF 0%, #FF6B6B 50%, #48C9B0 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--duo-green);
 }
 
 .level-badge-sm {
-  background: var(--secondary-light);
-  color: var(--secondary-shadow);
+  background: var(--duo-green-light);
+  color: var(--duo-green);
   font-size: 11px;
   font-weight: 800;
   padding: 3px 10px;
   border-radius: var(--radius-full);
-  border: 2px solid var(--secondary);
+  border: 2px solid var(--duo-green);
 }
 
 .header-right {
@@ -206,8 +222,8 @@ body {
 }
 
 .header-user-btn:hover {
-  border-color: var(--primary);
-  background: var(--primary-light);
+  border-color: var(--duo-green);
+  background: var(--duo-green-light);
 }
 
 /* ========== USER MENU ========== */
@@ -261,13 +277,13 @@ body {
 
 .level-badge {
   display: inline-flex;
-  background: var(--secondary-light);
-  color: var(--secondary-shadow);
+  background: var(--duo-green-light);
+  color: var(--duo-green);
   font-weight: 800;
   padding: 4px 14px;
   border-radius: var(--radius-full);
   font-size: 14px;
-  border: 2px solid var(--secondary);
+  border: 2px solid var(--duo-green);
 }
 
 .user-menu-divider {
@@ -346,8 +362,8 @@ body {
 }
 
 .nav-btn.on {
-  color: var(--primary);
-  border-top-color: var(--primary);
+  color: var(--duo-green);
+  border-top-color: var(--duo-green);
 }
 
 /* ========== PANELS ========== */
@@ -426,7 +442,7 @@ body {
 }
 
 .onboarding-dot.active {
-  background: var(--primary);
+  background: var(--duo-green);
   transform: scale(1.3);
 }
 
@@ -459,8 +475,9 @@ body {
 .hero-card {
   text-align: center;
   padding: 2rem 1.5rem;
-  background: linear-gradient(135deg, #E8E6FF 0%, #FFE8E8 100%);
-  border: 2px solid var(--primary-light);
+  background: linear-gradient(135deg, #E5F5D1 0%, #D6F0FF 100%);
+  border: 2px solid var(--duo-green-light);
+  border-bottom: 4px solid var(--duo-green);
 }
 
 .hero-icon {
@@ -486,6 +503,8 @@ body {
   font-size: 18px;
   padding: 16px 48px;
   margin-bottom: 12px;
+  background: var(--duo-green);
+  border-bottom-color: var(--duo-green-shadow);
 }
 
 .hero-btn-secondary {
@@ -566,7 +585,7 @@ body {
 .progress-ring-value {
   font-size: 28px;
   font-weight: 800;
-  color: var(--primary);
+  color: var(--duo-green);
   line-height: 1;
 }
 
@@ -593,17 +612,17 @@ body {
 
 .chip:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(108, 99, 255, 0.15);
-  border-color: var(--primary-light);
+  box-shadow: 0 4px 12px rgba(88, 204, 2, 0.15);
+  border-color: var(--duo-green-light);
 }
 
 .chip-val {
   font-size: 30px;
   font-weight: 800;
-  color: var(--warning);
+  color: var(--duo-orange);
   line-height: 1;
   margin-bottom: 6px;
-  text-shadow: 0px 2px 0px #D99F02;
+  text-shadow: 0px 2px 0px var(--duo-orange-shadow);
 }
 
 .chip-lbl {
@@ -669,7 +688,7 @@ select:focus {
 }
 
 .gen-btn:hover:not(:disabled) {
-  background-color: var(--primary-hover);
+  background: var(--duo-green-hover);
   transform: translateY(1px);
   border-bottom-width: 3px;
 }
@@ -689,10 +708,10 @@ select:focus {
 
 /* ========== MIC ========== */
 .mic-btn {
-  background: var(--secondary);
+  background: var(--duo-blue);
   color: white;
   border: none;
-  border-bottom: 4px solid var(--secondary-shadow);
+  border-bottom: 4px solid var(--duo-blue-shadow);
   border-radius: var(--radius-full);
   width: 48px;
   height: 48px;
@@ -706,7 +725,7 @@ select:focus {
 }
 
 .mic-btn:hover {
-  background: var(--secondary-hover);
+  background: var(--duo-blue-hover);
   transform: translateY(1px);
   border-bottom-width: 3px;
 }
@@ -739,7 +758,7 @@ select:focus {
 .card-label {
   font-size: 14px;
   font-weight: 800;
-  color: var(--text-main);
+  color: var(--duo-green);
   margin-bottom: 10px;
 }
 
@@ -757,7 +776,7 @@ select:focus {
   gap: 8px;
   font-size: 14px;
   font-weight: 700;
-  color: var(--secondary);
+  color: var(--duo-green);
   padding: 2rem 0;
   justify-content: center;
 }
@@ -766,7 +785,7 @@ select:focus {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--secondary);
+  background: var(--duo-green);
   animation: bounceDot 1s infinite ease-in-out both;
 }
 
@@ -790,8 +809,8 @@ select:focus {
 }
 
 .drill-item:hover {
-  border-color: var(--secondary);
-  background: var(--secondary-light);
+  border-color: var(--duo-green);
+  background: var(--duo-green-light);
 }
 
 .drill-es {
@@ -810,13 +829,13 @@ select:focus {
 .drill-ans {
   font-size: 16px;
   font-weight: 800;
-  color: var(--primary);
+  color: var(--duo-green);
   margin-top: 10px;
   display: none;
-  background: var(--primary-light);
+  background: var(--duo-green-light);
   padding: 10px 14px;
   border-radius: var(--radius-sm);
-  border: 2px solid var(--primary-shadow);
+  border: 2px solid var(--duo-green-shadow);
 }
 
 .drill-item.revealed .drill-ans { display: block; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
@@ -948,14 +967,14 @@ select:focus {
 }
 
 .msg.user-msg {
-  background: var(--primary);
+  background: var(--duo-green);
   color: white;
-  border: 2px solid var(--primary-shadow);
+  border: 2px solid var(--duo-green-shadow);
   align-self: flex-end;
   border-bottom-right-radius: 4px;
 }
 
-.msg.user-msg .msg-label { color: var(--primary-light); opacity: 0.8; }
+.msg.user-msg .msg-label { color: var(--duo-green-light); opacity: 0.8; }
 
 .msg.correction {
   background: #ffeff1;
@@ -1027,6 +1046,26 @@ select:focus {
   transform: none;
 }
 
+/* ========== SPEAKER BUTTON ========== */
+.speaker-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  vertical-align: middle;
+  margin-left: 4px;
+  user-select: none;
+  line-height: 1;
+}
+.speaker-btn:hover {
+  transform: scale(1.25);
+}
+.speaker-btn:active {
+  transform: scale(0.95);
+}
+
 .scenario-tag {
   display: inline-block;
   font-size: 12px;
@@ -1034,9 +1073,9 @@ select:focus {
   text-transform: uppercase;
   padding: 6px 14px;
   border-radius: var(--radius-full);
-  background: var(--secondary-light);
-  color: var(--secondary-shadow);
-  border: 2px solid var(--secondary);
+  background: var(--duo-blue-light);
+  color: var(--duo-blue);
+  border: 2px solid var(--duo-blue);
   margin-bottom: 14px;
 }
 
@@ -1099,6 +1138,25 @@ select:focus {
 }
 
 /* ========== MOBILE ========== */
+
+/* Speaker button for TTS */
+.speaker-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  user-select: none;
+  transition: transform 0.1s ease;
+  margin-left: 4px;
+  line-height: 1;
+}
+.speaker-btn:hover {
+  transform: scale(1.25);
+}
+.speaker-btn:active {
+  transform: scale(0.95);
+}
 @media (max-width: 768px) {
   .app {
     padding: 12px 12px calc(var(--bottom-nav-height) + 12px);

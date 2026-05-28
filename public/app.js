@@ -29,7 +29,8 @@ function loading() {
 function msgHTML(type, text, label) {
   const safeText = escapeHTML(text);
   const safeLabel = escapeHTML(label);
-  return `<div class="msg ${type}"><div class="msg-label">${safeLabel}</div>${safeText}</div>`;
+  const speakerBtn = type === 'waiter' ? ` <span class="speaker-btn" onclick="event.stopPropagation();speakText('${safeText.replace(/'/g, "\\'")}')">🔊</span>` : '';
+  return `<div class="msg ${type}"><div class="msg-label">${safeLabel}</div>${safeText}${speakerBtn}</div>`;
 }
 
 // --- API Helper ---
@@ -48,6 +49,14 @@ async function api(path, options = {}) {
 
 // --- Tabs ---
 function showTab(id, el) {
+  // Stop all TTS and sessions immediately when switching tabs
+  window.speechSynthesis.cancel();
+  stopSessionRequested = true;
+  isAutoPlaying = false;
+  isRapidFire = false;
+  const stopBtn = document.getElementById('stop-btn');
+  if (stopBtn) stopBtn.style.display = 'none';
+
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
   document.querySelectorAll('.tb').forEach(t => t.classList.remove('on'));
   const target = document.getElementById('tab-' + id);
@@ -503,7 +512,10 @@ async function sendAssessmentMsg() {
 }
 
 // --- Drills ---
-function stopSession() { stopSessionRequested = true; }
+function stopSession() {
+  stopSessionRequested = true;
+  window.speechSynthesis.cancel();
+}
 
 async function autoPlayDrills() {
   if (isAutoPlaying || isRapidFire || !lastDrills.length) return;
@@ -612,12 +624,12 @@ async function generateDrills() {
         <div class="card-label" style="background: var(--primary); color: white;">Conjugation: ${conj.verb}</div>
         <div class="card-body">
           <div style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, auto); grid-auto-flow: column; gap: 8px;">
-            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">YO</span><br><strong style="font-size:16px;">${formatConj(conj.yo)}</strong></div>
-            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">TÚ</span><br><strong style="font-size:16px;">${formatConj(conj.tu)}</strong></div>
-            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">ÉL/ELLA/UD.</span><br><strong style="font-size:16px;">${formatConj(conj.el_ella_usted)}</strong></div>
-            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">NOSOTROS/AS</span><br><strong style="font-size:16px;">${formatConj(conj.nosotros_as)}</strong></div>
-            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">VOSOTROS/AS</span><br><strong style="font-size:16px;">${formatConj(conj.vosotros_as)}</strong></div>
-            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">ELLOS/ELLAS/UDS.</span><br><strong style="font-size:16px;">${formatConj(conj.ellos_ellas_ustedes)}</strong></div>
+            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">YO</span><br><strong style="font-size:16px;">${formatConj(conj.yo)} <span class="speaker-btn" onclick="event.stopPropagation();speakText('${String(conj.yo).replace(/'/g, "\\'")}')">🔊</span></strong></div>
+            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">TÚ</span><br><strong style="font-size:16px;">${formatConj(conj.tu)} <span class="speaker-btn" onclick="event.stopPropagation();speakText('${String(conj.tu).replace(/'/g, "\\'")}')">🔊</span></strong></div>
+            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">ÉL/ELLA/UD.</span><br><strong style="font-size:16px;">${formatConj(conj.el_ella_usted)} <span class="speaker-btn" onclick="event.stopPropagation();speakText('${String(conj.el_ella_usted).replace(/'/g, "\\'")}')">🔊</span></strong></div>
+            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">NOSOTROS/AS</span><br><strong style="font-size:16px;">${formatConj(conj.nosotros_as)} <span class="speaker-btn" onclick="event.stopPropagation();speakText('${String(conj.nosotros_as).replace(/'/g, "\\'")}')">🔊</span></strong></div>
+            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">VOSOTROS/AS</span><br><strong style="font-size:16px;">${formatConj(conj.vosotros_as)} <span class="speaker-btn" onclick="event.stopPropagation();speakText('${String(conj.vosotros_as).replace(/'/g, "\\'")}')">🔊</span></strong></div>
+            <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">ELLOS/ELLAS/UDS.</span><br><strong style="font-size:16px;">${formatConj(conj.ellos_ellas_ustedes)} <span class="speaker-btn" onclick="event.stopPropagation();speakText('${String(conj.ellos_ellas_ustedes).replace(/'/g, "\\'")}')">🔊</span></strong></div>
           </div>
         </div>
       </div>
@@ -631,9 +643,9 @@ async function generateDrills() {
         <button class="gen-btn" style="flex:1; background:var(--incorrect); border-bottom-color:var(--incorrect-shadow); display:none;" id="stop-btn" onclick="stopSession()">⏹ Stop</button>
       </div>
       ${data.drills.map(d => `<div class="drill-item" onclick="this.classList.toggle('revealed')">
-        <div class="drill-es">${d.base}</div>
+        <div class="drill-es">${d.base} <span class="speaker-btn" onclick="event.stopPropagation();speakText('${d.base.replace(/'/g, "\\'")}')">🔊</span></div>
         <div class="drill-cue">Cue: <strong>${d.cue}</strong> · <span style="color:var(--text-light)">${d.translation}</span></div>
-        <div class="drill-ans">→ ${d.answer}</div>
+        <div class="drill-ans">→ ${d.answer} <span class="speaker-btn" onclick="event.stopPropagation();speakText('${d.answer.replace(/'/g, "\\'")}')">🔊</span></div>
       </div>`).join('')}
       <button class="reveal-all" style="width:100%; margin-top:10px;" onclick="document.querySelectorAll('.drill-item').forEach(d=>d.classList.add('revealed'))">Reveal all answers</button>
     </div>
@@ -697,10 +709,10 @@ async function generateVocab() {
     out.innerHTML = `<div style="margin-bottom:8px;font-size:13px;color:var(--text-muted)">Theme: <strong>${theme}</strong></div>
     <div class="vocab-grid">
       ${data.map(v => `<div class="vocab-card" onclick="this.classList.toggle('revealed')">
-        <div class="vocab-es">${v.es}</div>
+        <div class="vocab-es">${v.es} <span class="speaker-btn" onclick="event.stopPropagation();speakText('${v.es.replace(/'/g, "\\'")}')">🔊</span></div>
         <div class="vocab-en">${v.en}</div>
         <div class="vocab-ex">
-          ${v.example_es}<br><em>${v.example_en}</em>
+          ${v.example_es} <span class="speaker-btn" onclick="event.stopPropagation();speakText('${v.example_es.replace(/'/g, "\\'")}')">🔊</span><br><em>${v.example_en}</em>
         </div>
       </div>`).join('')}
     </div>`;
@@ -806,11 +818,54 @@ async function sendRpMsg() {
 }
 
 // --- Speech ---
+let cachedSpanishVoice = null;
+
+function findBestSpanishVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = ['Google español', 'Google es-ES', 'Microsoft Helena', 'Microsoft Laura', 'Microsoft Sabina'];
+  // Try preferred names first
+  for (const name of preferred) {
+    const found = voices.find(v => v.name === name);
+    if (found) return found;
+  }
+  // Try any Spanish voice
+  const spanish = voices.find(v => v.lang && (v.lang.startsWith('es') || v.lang.startsWith('es-')));
+  if (spanish) return spanish;
+  // Fallback: any voice that has 'es' in lang
+  const esFallback = voices.find(v => v.lang && v.lang.includes('es'));
+  if (esFallback) return esFallback;
+  return null;
+}
+
+function loadSpanishVoice() {
+  if (cachedSpanishVoice) return;
+  const v = findBestSpanishVoice();
+  if (v) cachedSpanishVoice = v;
+  if (!cachedSpanishVoice && window.speechSynthesis.getVoices().length > 0) {
+    // If no Spanish voice found, just use any available voice
+    cachedSpanishVoice = window.speechSynthesis.getVoices()[0];
+  }
+}
+
+// Initialize voice loading
+if (window.speechSynthesis) {
+  loadSpanishVoice();
+  window.speechSynthesis.onvoiceschanged = () => {
+    loadSpanishVoice();
+  };
+}
+
 function speakText(text, onEnd = null) {
   if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
   const cleanText = text.split("CORRECTION:")[0].trim();
   const utterance = new SpeechSynthesisUtterance(cleanText);
   utterance.lang = 'es-ES';
+  utterance.rate = 0.9;
+  utterance.pitch = 1.0;
+  if (cachedSpanishVoice) {
+    utterance.voice = cachedSpanishVoice;
+  }
   if (onEnd) utterance.onend = onEnd;
   window.speechSynthesis.speak(utterance);
 }
