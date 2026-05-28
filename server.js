@@ -11,6 +11,9 @@ dotenv.config();
 
 const app = express();
 
+// Trust proxy for ngrok/reverse proxy setups
+app.set('trust proxy', 1);
+
 // --- 1. Security: Basic Authentication ---
 // Protects the entire app from unauthorized access (Issue 5)
 const users = {};

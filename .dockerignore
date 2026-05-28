@@ -1,9 +1,5 @@
-node_modules
-npm-debug.log
 .env
-app.db
-server.log
 .git
-.gitignore
+node_modules
 PLAN.md
-README.md
+*.md
