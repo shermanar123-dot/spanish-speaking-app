@@ -393,11 +393,24 @@ function dismissOnboarding() {
 // --- Voice Integration ---
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
+let recognitionSilenceTimer = null;
 if (SpeechRecognition) {
   recognition = new SpeechRecognition();
   recognition.lang = 'es-ES';
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;
+}
+
+// Detect iOS Safari for workarounds
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+function clearSilenceTimer() {
+  if (recognitionSilenceTimer) {
+    clearTimeout(recognitionSilenceTimer);
+    recognitionSilenceTimer = null;
+  }
 }
 
 function toggleMic(inputId, btnId) {
@@ -411,18 +424,40 @@ function toggleMic(inputId, btnId) {
   if (btn.classList.contains('recording')) {
     recognition.stop();
     btn.classList.remove('recording');
+    clearSilenceTimer();
     return;
   }
 
+  // On iOS, re-create the recognition object each time to avoid stale state
+  if (isIOS()) {
+    try { recognition.abort(); } catch(e) {}
+    recognition = new SpeechRecognition();
+  }
+
+  recognition.lang = 'es';  // Use generic 'es' — iOS Safari struggles with 'es-ES'
+  recognition.continuous = true;
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
   recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
+    clearSilenceTimer();
+    // Grab the most recent transcript (works with continuous=true)
+    let transcript = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      transcript = event.results[i][0].transcript;
+    }
+    if (!transcript.trim()) return;
+
     input.value = transcript;
     btn.classList.remove('recording');
     
+    // Stop listening once we have words
+    try { recognition.stop(); } catch(e) {}
+
     if (inputId === 'assessment-input') {
       const scoreContainer = document.getElementById('assessment-score-container');
       if (scoreContainer) {
-        const accuracy = Math.round(Math.pow(event.results[0][0].confidence, 2.5) * 100);
+        const accuracy = Math.round(Math.pow(event.results[event.results.length-1][0].confidence, 2.5) * 100);
         document.getElementById('assessment-score-fill').style.width = accuracy + '%';
         document.getElementById('assessment-score-val').innerText = accuracy + '%';
         scoreContainer.style.display = 'flex';
@@ -438,17 +473,34 @@ function toggleMic(inputId, btnId) {
   recognition.onerror = (event) => {
     console.error("Speech recognition error", event.error);
     btn.classList.remove('recording');
+    clearSilenceTimer();
+    // Show a helpful message for common iOS errors
+    if (event.error === 'no-speech' || event.error === 'audio-capture') {
+      input.placeholder = "Mic issue — check permissions and try again";
+    }
   };
 
   recognition.onend = () => {
     btn.classList.remove('recording');
+    clearSilenceTimer();
   };
 
   try {
     recognition.start();
     btn.classList.add('recording');
+    // If no result fires within 15s, stop recording so user knows
+    recognitionSilenceTimer = setTimeout(() => {
+      if (btn.classList.contains('recording')) {
+        recognition.stop();
+        btn.classList.remove('recording');
+        clearSilenceTimer();
+        // Show a helpful hint
+        input.placeholder = "Didn't catch that — tap 🎤 and speak clearly";
+      }
+    }, 15000);
   } catch(e) {
     console.log(e);
+    btn.classList.remove('recording');
   }
 }
 
