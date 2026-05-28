@@ -7,267 +7,342 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="app">
-  <h1 class="duo-title">Habla Diario</h1>
-  <p class="subtitle">Your 10–15 min daily Spanish speaking practice</p>
 
-  <div class="tabs">
-    <button class="tab on" onclick="showTab('home', this)">Home</button>
-    <button class="tab" onclick="showTab('drill', this)">FSI Drills</button>
-    <button class="tab" onclick="showTab('vocab', this)">Vocab</button>
-    <button class="tab" onclick="showTab('roleplay', this)">Roleplay</button>
+<!-- Auth Modal -->
+<div id="auth-overlay" class="auth-overlay">
+  <div class="auth-card" id="auth-card">
+    <div class="auth-logo">Habla Diario</div>
+    <p class="auth-tagline">Your daily Spanish speaking practice</p>
+    
+    <!-- Login Form -->
+    <div id="login-form" class="auth-form">
+      <div class="auth-title">Welcome back</div>
+      <input type="email" id="login-email" class="auth-input" placeholder="Email" autocomplete="email">
+      <input type="password" id="login-password" class="auth-input" placeholder="Password" autocomplete="current-password">
+      <div id="login-error" class="auth-error"></div>
+      <button class="auth-btn gen-btn" onclick="login()">Log In</button>
+      <p class="auth-switch">Don't have an account? <a href="#" onclick="showSignup()">Sign up</a></p>
+    </div>
+
+    <!-- Signup Form -->
+    <div id="signup-form" class="auth-form" style="display:none">
+      <div class="auth-title">Create your account</div>
+      <input type="email" id="signup-email" class="auth-input" placeholder="Email" autocomplete="email">
+      <input type="password" id="signup-password" class="auth-input" placeholder="Password (min 6 chars)" autocomplete="new-password">
+      <div id="signup-error" class="auth-error"></div>
+      <button class="auth-btn gen-btn" onclick="signup()">Sign Up</button>
+      <p class="auth-switch">Already have an account? <a href="#" onclick="showLogin()">Log in</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- User Menu (shown when logged in) -->
+<div id="user-menu" class="user-menu" style="display:none">
+  <div class="user-menu-header">
+    <div class="user-avatar" id="user-avatar">👤</div>
+    <div>
+      <div class="user-name" id="user-name">User</div>
+      <div class="user-email" id="user-email">user@email.com</div>
+    </div>
+  </div>
+  <div class="user-menu-level" id="user-menu-level">
+    <span class="level-badge" id="header-level-badge">A1</span>
+  </div>
+  <hr class="user-menu-divider">
+  <button class="user-menu-btn" onclick="showTab('home', document.querySelectorAll('.tb')[0]); toggleUserMenu()">🏠 Home</button>
+  <button class="user-menu-btn" onclick="logout()">🚪 Log out</button>
+</div>
+
+<div class="app" id="app-main">
+  <!-- Header -->
+  <div class="app-header">
+    <div class="header-left">
+      <div class="app-title">Habla Diario</div>
+      <span class="level-badge-sm" id="header-level-badge-sm" style="display:none">A1</span>
+    </div>
+    <div class="header-right">
+      <div id="header-user-btn" class="header-user-btn" onclick="toggleUserMenu()">
+        <span id="header-user-icon">👤</span>
+      </div>
+    </div>
   </div>
 
-  <!-- HOME -->
-  <div id="tab-home" class="panel on">
-    <div class="streak-row">
-      <div class="chip"><div class="chip-val" id="stat-streak">0</div><div class="chip-lbl">Day streak</div></div>
-      <div class="chip"><div class="chip-val" id="stat-mins">0</div><div class="chip-lbl">Min spoken</div></div>
-      <div class="chip"><div class="chip-val" id="stat-drills">0</div><div class="chip-lbl">Drills done</div></div>
-      <div class="chip"><div class="chip-val" id="stat-level">?</div><div class="chip-lbl">Level</div></div>
-    </div>
+  <!-- Main Content Area -->
+  <div id="main-content">
+    <!-- HOME -->
+    <div id="tab-home" class="panel home-panel on">
+      <!-- Stats with Progress Ring -->
+      <div class="stats-wrapper" id="stats-wrapper">
+        <div class="progress-ring-wrapper">
+          <div class="progress-ring">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle class="progress-ring-bg" cx="60" cy="60" r="50"/>
+              <circle class="progress-ring-fill" id="progress-ring-fill" cx="60" cy="60" r="50"
+                stroke-dasharray="314.16" stroke-dashoffset="314.16"/>
+            </svg>
+            <div class="progress-ring-text">
+              <div class="progress-ring-value" id="ring-mins">0</div>
+              <div class="progress-ring-label">of 15 min</div>
+            </div>
+          </div>
+        </div>
+        <div class="streak-row">
+          <div class="chip"><div class="chip-val" id="stat-streak">0</div><div class="chip-lbl">Day streak</div></div>
+          <div class="chip"><div class="chip-val" id="stat-drills">0</div><div class="chip-lbl">Drills done</div></div>
+          <div class="chip"><div class="chip-val" id="stat-level">?</div><div class="chip-lbl">Level</div></div>
+        </div>
+      </div>
 
-    <div class="card" style="text-align: center; padding: 2rem;">
-      <h2 style="margin-bottom: 8px; color: var(--text-main); font-weight: 800;">Daily Practice</h2>
-      <p style="color: var(--text-muted); margin-bottom: 24px;">Level up your Spanish with a curated 15-minute session.</p>
-      <div style="display:flex; gap:12px; justify-content: center; flex-wrap: wrap;">
-        <button class="gen-btn" style="font-size: 16px; padding: 14px 40px;" onclick="startDailyMission()">🚀 Play</button>
-        <button class="reveal-all" style="margin-top:0; font-size: 16px; padding: 14px 24px;" onclick="reviewMistakes()">🔄 Review Mistakes</button>
+      <!-- Daily Practice Hero -->
+      <div class="hero-card card">
+        <div class="hero-icon">🗣️</div>
+        <h2 class="hero-title">Daily Practice</h2>
+        <p class="hero-desc">Level up your Spanish with a guided 15-minute session.</p>
+        <button class="hero-btn gen-btn" onclick="startDailyMission()">🚀 Start Practice</button>
+        <button class="hero-btn-secondary" onclick="reviewMistakes()">🔄 Review Mistakes</button>
+      </div>
+
+      <div id="mistakes-review-area" class="card" style="display:none">
+         <div class="card-label">Mistakes Review</div>
+         <div id="mistakes-list"></div>
+         <button class="reveal-all" onclick="document.getElementById('mistakes-review-area').style.display='none'">Close Review</button>
+      </div>
+
+      <!-- Assessment Section -->
+      <div id="home-assessment-intro" class="card" style="display:none">
+        <div class="card-label">📋 Find Your Level</div>
+        <div class="card-body" style="font-size:14px;color:var(--color-text-secondary);margin-bottom:1rem;">
+          Before starting drills or roleplays, let's find out your level. The AI will ask you a few questions in Spanish.
+        </div>
+        <button class="gen-btn" id="start-assessment-btn" style="margin-bottom: 1rem;" onclick="startAssessment()">Start Assessment</button>
+        <div class="card-label" style="margin-top: 1rem;">Or Select Level Manually</div>
+        <div style="display: flex; gap: 8px;">
+          <select id="manual-level-select" style="flex: 1;">
+            <option value="A1">A1 (Beginner)</option>
+            <option value="A2">A2 (Elementary)</option>
+            <option value="B1">B1 (Intermediate)</option>
+            <option value="B2">B2 (Upper Intermediate)</option>
+          </select>
+          <button class="gen-btn" style="margin: 0;" onclick="setManualLevel()">Set Level</button>
+        </div>
+      </div>
+
+      <div id="home-assessment-area" style="display:none">
+        <div class="card">
+          <div class="card-label">🎙️ Proficiency Interview</div>
+          <div class="chat" id="assessment-chat"></div>
+          <div id="assessment-score-container" class="score-container" style="display:none">
+            <span class="score-lbl">Pronunciation Accuracy:</span>
+            <div class="score-bar"><div id="assessment-score-fill" class="score-fill"></div></div>
+            <span id="assessment-score-val" class="score-val">0%</span>
+          </div>
+          <div class="input-row">
+            <button class="mic-btn" id="assessment-mic-btn" onclick="toggleMic('assessment-input', 'assessment-mic-btn')" title="Use Microphone">🎤</button>
+            <input type="text" id="assessment-input" placeholder="Tu respuesta..." onkeydown="if(event.key==='Enter')sendAssessmentMsg()"/>
+            <button class="send-btn" id="assessment-send-btn" onclick="sendAssessmentMsg()">Send</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="home-profile" class="card" style="display:none">
+        <div class="card-label">Your Assessment Profile</div>
+        <div class="card-body">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div>
+              <div style="font-size:12px; text-transform:uppercase; color:var(--text-light); font-weight:800; margin-bottom:4px;">Current Level</div>
+              <div id="home-prof-level" style="font-size:24px; font-weight:800; color:var(--primary);"></div>
+            </div>
+            <div>
+              <div style="font-size:12px; text-transform:uppercase; color:var(--text-light); font-weight:800; margin-bottom:4px;">Last Assessed</div>
+              <div id="home-prof-date" style="font-size:16px; font-weight:700; color:var(--text-main);"></div>
+            </div>
+          </div>
+          <div style="margin-top:16px;">
+            <div style="font-size:12px; text-transform:uppercase; color:var(--text-light); font-weight:800; margin-bottom:4px;">Strengths</div>
+            <div id="home-prof-str" style="color:var(--secondary); font-weight:700;"></div>
+          </div>
+          <div style="margin-top:16px;">
+            <div style="font-size:12px; text-transform:uppercase; color:var(--text-light); font-weight:800; margin-bottom:4px;">Focus Areas</div>
+            <div id="home-prof-weak" style="color:var(--incorrect); font-weight:700;"></div>
+          </div>
+          <div style="margin-top:16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+            <div style="font-size:12px; text-transform:uppercase; color:var(--text-light); font-weight:800; margin-bottom:8px;">Change Level Manually</div>
+            <div style="display: flex; gap: 8px;">
+              <select id="manual-level-select-profile" style="flex: 1;">
+                <option value="A1">A1 (Beginner)</option>
+                <option value="A2">A2 (Elementary)</option>
+                <option value="B1">B1 (Intermediate)</option>
+                <option value="B2">B2 (Upper Intermediate)</option>
+              </select>
+              <button class="gen-btn" style="margin: 0; padding: 8px 16px;" onclick="setManualLevel('profile')">Update</button>
+            </div>
+          </div>
+          <button class="reveal-all" style="width:100%; margin-top:20px;" onclick="startAssessment()">Retake Rigorous Assessment</button>
+        </div>
       </div>
     </div>
 
-    <div id="mistakes-review-area" class="card" style="display:none">
-       <div class="card-label">Mistakes Review</div>
-       <div id="mistakes-list"></div>
-       <button class="reveal-all" onclick="document.getElementById('mistakes-review-area').style.display='none'">Close Review</button>
-    </div>
-
-    <!-- Home Assessment Sections -->
-    <div id="home-assessment-intro" class="card" style="display:none">
-      <div class="card-label">Personalized Assessment</div>
-      <div class="card-body" style="font-size:14px;color:var(--color-text-secondary);margin-bottom:1rem;">
-        Before starting drills or roleplays, let's find out your level. The AI will ask you a few questions in Spanish. Answer naturally using your microphone or keyboard.
-      </div>
-      <button class="gen-btn" id="start-assessment-btn" style="margin-bottom: 1rem;" onclick="startAssessment()">Start Assessment</button>
-      
-      <div class="card-label" style="margin-top: 1rem;">Or Select Level Manually</div>
-      <div style="display: flex; gap: 8px;">
-        <select id="manual-level-select" style="flex: 1;">
-          <option value="A1">A1 (Beginner)</option>
-          <option value="A2">A2 (Elementary)</option>
-          <option value="B1">B1 (Intermediate)</option>
-          <option value="B2">B2 (Upper Intermediate)</option>
+    <!-- DRILLS -->
+    <div id="tab-drill" class="panel">
+      <div class="controls">
+        <select id="drill-verb">
+          <option value="ser">ser (to be)</option>
+          <option value="estar">estar (to be)</option>
+          <option value="tener">tener (to have)</option>
+          <option value="hacer">hacer (to do)</option>
+          <option value="poder">poder (can)</option>
+          <option value="decir">decir (to say)</option>
+          <option value="ir">ir (to go)</option>
+          <option value="ver">ver (to see)</option>
+          <option value="dar">dar (to give)</option>
+          <option value="saber">saber (to know)</option>
+          <option value="querer">querer (to want)</option>
+          <option value="llegar">llegar (to arrive)</option>
+          <option value="hablar">hablar (to speak)</option>
+          <option value="trabajar">trabajar (to work)</option>
+          <option value="vivir">vivir (to live)</option>
         </select>
-        <button class="gen-btn" style="margin: 0;" onclick="setManualLevel()">Set Level</button>
+        <select id="drill-tense">
+          <option value="Present">Present</option>
+          <option value="Preterite (Past)">Preterite (Past)</option>
+          <option value="Imperfect (Past Continuous)">Imperfect</option>
+          <option value="Future">Future</option>
+          <option value="Present Perfect">Present Perfect</option>
+          <option value="Present Subjunctive">Present Subjunctive</option>
+        </select>
+        <select id="drill-pattern">
+          <option value="Substitution">Substitution</option>
+          <option value="Transformation">Transformation</option>
+          <option value="Response">Response</option>
+          <option value="Translation">Translation</option>
+          <option value="Expansion">Expansion</option>
+        </select>
+        <select id="rapid-speed" title="Rapid Fire Speed">
+          <option value="3000">Speed: 3s</option>
+          <option value="5000">Speed: 5s</option>
+        </select>
+        <button class="gen-btn" id="drill-gen-btn" onclick="generateDrills()">Generate drills</button>
+      </div>
+      <div id="drill-output">
+        <div class="card">
+          <div class="card-label">How it works</div>
+          <div class="card-body" style="font-size:14px;color:var(--color-text-secondary)">Select a verb, tense, and drill pattern. The AI will generate 6 FSI substitution drills tailored to your level.</div>
+        </div>
       </div>
     </div>
 
-    <div id="home-assessment-area" style="display:none">
-      <div class="card">
-        <div class="card-label">Proficiency Interview</div>
-        <div class="chat" id="assessment-chat"></div>
-        <div id="assessment-score-container" class="score-container" style="display:none">
-          <span class="score-lbl">Pronunciation Accuracy:</span>
-          <div class="score-bar"><div id="assessment-score-fill" class="score-fill"></div></div>
-          <span id="assessment-score-val" class="score-val">0%</span>
+    <!-- VOCAB -->
+    <div id="tab-vocab" class="panel">
+      <div class="controls">
+        <select id="vocab-theme">
+          <option value="café and food ordering">Café & food</option>
+          <option value="shopping and markets">Shopping</option>
+          <option value="travel and transport">Travel</option>
+          <option value="work and daily routine">Work</option>
+          <option value="health and body">Health</option>
+          <option value="hotel check-in">Hotel</option>
+          <option value="hobbies and free time">Hobbies</option>
+          <option value="emergencies">Emergencies</option>
+          <option value="numbers and counting">Numbers</option>
+        </select>
+        <button class="gen-btn" id="vocab-gen-btn" onclick="generateVocab()">Generate vocab</button>
+      </div>
+      <div id="vocab-output">
+        <div class="card">
+          <div class="card-label">How it works</div>
+          <div class="card-body" style="font-size:14px;color:var(--color-text-secondary)">Choose a theme for 20 high-frequency words tailored to your level.</div>
         </div>
+      </div>
+    </div>
+
+    <!-- ROLEPLAY -->
+    <div id="tab-roleplay" class="panel">
+      <div class="controls">
+        <select id="rp-scenario">
+          <option value="ordering at a café in Madrid">☕ Café</option>
+          <option value="buying groceries at a market">🛒 Market</option>
+          <option value="asking for directions in the street">🗺️ Directions</option>
+          <option value="job interview or office meeting">💼 Job interview</option>
+          <option value="visiting a doctor">🏥 Doctor visit</option>
+          <option value="checking in at a hotel">🏨 Hotel</option>
+          <option value="discussing hobbies and free time with a friend">🎮 Hobbies</option>
+          <option value="reporting an emergency or lost item">🚨 Emergency</option>
+          <option value="making an appointment or scheduling a meeting">📅 Appointment</option>
+        </select>
+        <button class="gen-btn" id="rp-start-btn" onclick="startRoleplay()">New scenario</button>
+      </div>
+      <div id="rp-area" style="display:none">
+        <div class="scenario-tag" id="rp-tag"></div>
+        <div class="chat" id="rp-chat"></div>
         <div class="input-row">
-          <button class="mic-btn" id="assessment-mic-btn" onclick="toggleMic('assessment-input', 'assessment-mic-btn')" title="Use Microphone">🎤</button>
-          <input type="text" id="assessment-input" placeholder="Tu respuesta (Your answer)..." onkeydown="if(event.key==='Enter')sendAssessmentMsg()"/>
-          <button class="send-btn" id="assessment-send-btn" onclick="sendAssessmentMsg()">Send</button>
+          <button class="mic-btn" id="rp-mic-btn" onclick="toggleMic('rp-input', 'rp-mic-btn')">🎤</button>
+          <input type="text" id="rp-input" placeholder="Write or speak in Spanish..." onkeydown="if(event.key==='Enter')sendRpMsg()"/>
+          <button class="send-btn" id="rp-send-btn" onclick="sendRpMsg()">Send</button>
+          <button class="reveal-all" style="margin-top:0" id="rp-finish-btn" onclick="finishRoleplay()">Finish</button>
+        </div>
+      </div>
+      <div id="rp-placeholder">
+        <div class="card">
+          <div class="card-label">How it works</div>
+          <div class="card-body" style="font-size:14px;color:var(--color-text-secondary)">Choose a scenario and tap New scenario. Speak or type your responses in Spanish.</div>
         </div>
       </div>
     </div>
 
-    <div id="home-profile" class="card" style="display:none">
-      <div class="card-label">Your Assessment Profile</div>
-      <div class="card-body">
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-          <div>
-            <div style="font-size:12px; text-transform:uppercase; color:var(--text-light); font-weight:800; margin-bottom:4px;">Current Level</div>
-            <div id="home-prof-level" style="font-size:24px; font-weight:800; color:var(--primary);"></div>
+    <!-- PROFILE TAB -->
+    <div id="tab-profile" class="panel">
+      <div class="card">
+        <div class="card-label">👤 Your Profile</div>
+        <div class="card-body">
+          <div id="profile-stats" style="margin-bottom: 20px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+              <div><strong>Email</strong><br><span id="prof-email" style="color:var(--text-muted);">—</span></div>
+              <div><strong>Joined</strong><br><span id="prof-joined" style="color:var(--text-muted);">—</span></div>
+              <div><strong>Level</strong><br><span id="prof-level" style="color:var(--text-muted);">Not set</span></div>
+              <div><strong>Account</strong><br><span id="prof-tier" style="color:var(--text-muted);">Free</span></div>
+            </div>
           </div>
-          <div>
-            <div style="font-size:12px; text-transform:uppercase; color:var(--text-light); font-weight:800; margin-bottom:4px;">Last Assessed</div>
-            <div id="home-prof-date" style="font-size:16px; font-weight:700; color:var(--text-main);"></div>
-          </div>
+          <button class="gen-btn" style="width:100%;" onclick="logout()">🚪 Log out</button>
         </div>
-        <div style="margin-top:16px;">
-          <div style="font-size:12px; text-transform:uppercase; color:var(--text-light); font-weight:800; margin-bottom:4px;">Strengths</div>
-          <div id="home-prof-str" style="color:var(--secondary); font-weight:700;"></div>
-        </div>
-        <div style="margin-top:16px;">
-          <div style="font-size:12px; text-transform:uppercase; color:var(--text-light); font-weight:800; margin-bottom:4px;">Focus Areas</div>
-          <div id="home-prof-weak" style="color:var(--incorrect); font-weight:700;"></div>
-        </div>
-        <div style="margin-top:16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
-          <div style="font-size:12px; text-transform:uppercase; color:var(--text-light); font-weight:800; margin-bottom:8px;">Change Level Manually</div>
-          <div style="display: flex; gap: 8px;">
-            <select id="manual-level-select-profile" style="flex: 1;">
-              <option value="A1">A1 (Beginner)</option>
-              <option value="A2">A2 (Elementary)</option>
-              <option value="B1">B1 (Intermediate)</option>
-              <option value="B2">B2 (Upper Intermediate)</option>
-            </select>
-            <button class="gen-btn" style="margin: 0; padding: 8px 16px;" onclick="setManualLevel('profile')">Update</button>
-          </div>
-        </div>
-        <button class="reveal-all" style="width:100%; margin-top:20px;" onclick="startAssessment()">Retake Rigorous Assessment</button>
       </div>
     </div>
   </div>
 
-  <!-- DRILLS -->
-  <div id="tab-drill" class="panel">
-    <div class="controls">
-      <select id="drill-verb">
-        <option value="ser">ser (to be - essence)</option>
-        <option value="estar">estar (to be - condition/location)</option>
-        <option value="tener">tener (to have)</option>
-        <option value="hacer">hacer (to do/make)</option>
-        <option value="poder">poder (to be able to/can)</option>
-        <option value="decir">decir (to say/tell)</option>
-        <option value="ir">ir (to go)</option>
-        <option value="ver">ver (to see)</option>
-        <option value="dar">dar (to give)</option>
-        <option value="saber">saber (to know - facts)</option>
-        <option value="querer">querer (to want/love)</option>
-        <option value="llegar">llegar (to arrive)</option>
-        <option value="pasar">pasar (to pass/happen)</option>
-        <option value="deber">deber (to owe/must)</option>
-        <option value="poner">poner (to put/place)</option>
-        <option value="parecer">parecer (to seem)</option>
-        <option value="quedar">quedar (to stay/remain)</option>
-        <option value="creer">creer (to believe)</option>
-        <option value="hablar">hablar (to speak)</option>
-        <option value="llevar">llevar (to take/carry)</option>
-        <option value="dejar">dejar (to leave/let)</option>
-        <option value="seguir">seguir (to follow/continue)</option>
-        <option value="encontrar">encontrar (to find)</option>
-        <option value="llamar">llamar (to call)</option>
-        <option value="venir">venir (to come)</option>
-        <option value="pensar">pensar (to think)</option>
-        <option value="salir">salir (to leave/go out)</option>
-        <option value="volver">volver (to return)</option>
-        <option value="tomar">tomar (to take/drink)</option>
-        <option value="conocer">conocer (to know - people/places)</option>
-        <option value="vivir">vivir (to live)</option>
-        <option value="sentir">sentir (to feel)</option>
-        <option value="tratar">tratar (to try/treat)</option>
-        <option value="mirar">mirar (to look)</option>
-        <option value="contar">contar (to count/tell)</option>
-        <option value="empezar">empezar (to start)</option>
-        <option value="esperar">esperar (to wait/hope)</option>
-        <option value="escribir">escribir (to write)</option>
-        <option value="buscar">buscar (to look for)</option>
-        <option value="entrar">entrar (to enter)</option>
-        <option value="trabajar">trabajar (to work)</option>
-        <option value="perder">perder (to lose)</option>
-        <option value="ocurrir">ocurrir (to occur/happen)</option>
-        <option value="entender">entender (to understand)</option>
-        <option value="pedir">pedir (to ask for)</option>
-        <option value="recibir">recibir (to receive)</option>
-        <option value="recordar">recordar (to remember)</option>
-        <option value="terminar">terminar (to finish)</option>
-        <option value="permitir">permitir (to allow)</option>
-        <option value="aparecer">aparecer (to appear)</option>
-      </select>
-      <select id="drill-tense">
-        <option value="Present">Present</option>
-        <option value="Preterite (Past)">Preterite (Past)</option>
-        <option value="Imperfect (Past Continuous)">Imperfect</option>
-        <option value="Future">Future</option>
-        <option value="Present Perfect">Present Perfect</option>
-        <option value="Present Subjunctive">Present Subjunctive</option>
-      </select>
-      <select id="drill-pattern">
-        <option value="Substitution">Substitution</option>
-        <option value="Transformation">Transformation</option>
-        <option value="Response">Response</option>
-        <option value="Translation">Translation</option>
-        <option value="Expansion">Expansion</option>
-      </select>
-      <select id="rapid-speed" title="Rapid Fire Speed">
-        <option value="3000">Speed: 3s</option>
-        <option value="5000">Speed: 5s</option>
-      </select>
-      <button class="gen-btn" id="drill-gen-btn" onclick="generateDrills()">Generate drills</button>
-    </div>
-    <div id="drill-output">
-      <div class="card">
-        <div class="card-label">How it works</div>
-        <div class="card-body" style="font-size:14px;color:var(--color-text-secondary)">Select a verb, tense, and drill pattern. The AI will generate 6 FSI substitution drills tailored to your assessment level.</div>
-      </div>
-    </div>
+  <!-- Bottom Navigation -->
+  <div class="bottom-nav">
+    <button class="nav-btn tb on" onclick="showTab('home', this)" data-tab="home">🏠<span>Home</span></button>
+    <button class="nav-btn tb" onclick="showTab('drill', this)" data-tab="drill">📖<span>Drills</span></button>
+    <button class="nav-btn tb" onclick="showTab('vocab', this)" data-tab="vocab">📚<span>Vocab</span></button>
+    <button class="nav-btn tb" onclick="showTab('roleplay', this)" data-tab="roleplay">🎭<span>Roleplay</span></button>
+    <button class="nav-btn tb" onclick="showTab('profile', this)" data-tab="profile">👤<span>Profile</span></button>
   </div>
+</div>
 
-  <!-- VOCAB -->
-  <div id="tab-vocab" class="panel">
-    <div class="controls">
-      <select id="vocab-theme">
-        <option value="café and food ordering">Café & food ordering</option>
-        <option value="shopping and markets">Shopping & markets</option>
-        <option value="travel and transport">Travel & transport</option>
-        <option value="work and daily routine">Work & daily routine</option>
-        <option value="health and body">Health & body</option>
-        <option value="hotel check-in">Hotel check-in</option>
-        <option value="airport and flights">Airport & flights</option>
-        <option value="hobbies and free time">Hobbies & free time</option>
-        <option value="emergencies">Emergencies</option>
-        <option value="real estate and housing">Real estate & housing</option>
-        <option value="time and dates">Time & dates</option>
-        <option value="days, months, and years">Days, months & years</option>
-        <option value="numbers and counting">Numbers & counting</option>
-      </select>
-      <button class="gen-btn" id="vocab-gen-btn" onclick="generateVocab()">Generate vocab</button>
+<!-- Onboarding Flow -->
+<div id="onboarding-overlay" class="onboarding-overlay" style="display:none">
+  <div class="onboarding-card" id="onboarding-card">
+    <div class="onboarding-step" id="onboarding-step-1">
+      <div class="onboarding-icon">🗣️</div>
+      <h2 class="onboarding-title">Welcome to Habla Diario!</h2>
+      <p class="onboarding-desc">Practice Spanish every day with AI-powered drills, roleplays, and vocabulary lessons tailored to your level.</p>
     </div>
-
-    <div id="vocab-output">
-      <div class="card">
-        <div class="card-label">How it works</div>
-        <div class="card-body" style="font-size:14px;color:var(--color-text-secondary)">Choose a theme for 20 high-frequency words tailored to your level.</div>
-      </div>
+    <div class="onboarding-step" id="onboarding-step-2" style="display:none">
+      <div class="onboarding-icon">📋</div>
+      <h2 class="onboarding-title">Step 1: Find Your Level</h2>
+      <p class="onboarding-desc">Take a quick 4-question assessment so the AI knows your level. Or set it manually if you already know.</p>
     </div>
-
-  </div>
-
-  <!-- ROLEPLAY -->
-  <div id="tab-roleplay" class="panel">
-    <div class="controls">
-      <select id="rp-scenario">
-        <option value="ordering at a café in Madrid">Café & food ordering</option>
-        <option value="buying groceries at a market">Shopping & markets</option>
-        <option value="asking for directions in the street">Travel & transport</option>
-        <option value="job interview or office meeting">Work & daily routine</option>
-        <option value="visiting a doctor">Health & body</option>
-        <option value="checking in at a hotel">Hotel check-in</option>
-        <option value="checking in at the airport">Airport & flights</option>
-        <option value="discussing hobbies and free time with a friend">Hobbies & free time</option>
-        <option value="reporting an emergency or lost item">Emergencies</option>
-        <option value="looking for an apartment to rent">Real estate & housing</option>
-        <option value="making an appointment or scheduling a meeting">Time & dates (Appointments)</option>
-        <option value="planning a future event or birthday party">Days, months & years (Planning)</option>
-        <option value="discussing prices, quantities, and measurements">Numbers & counting (Prices/Quantities)</option>
-      </select>
-      <button class="gen-btn" id="rp-start-btn" onclick="startRoleplay()">New scenario</button>
+    <div class="onboarding-step" id="onboarding-step-3" style="display:none">
+      <div class="onboarding-icon">🎯</div>
+      <h2 class="onboarding-title">Step 2: Practice Daily</h2>
+      <p class="onboarding-desc">Your goal is 15 minutes a day. Try drills, roleplay conversations, and build your vocabulary — all with voice input!</p>
     </div>
-    <div id="rp-area" style="display:none">
-      <div class="scenario-tag" id="rp-tag"></div>
-      <div class="chat" id="rp-chat"></div>
-      <div class="input-row">
-        <button class="mic-btn" id="rp-mic-btn" onclick="toggleMic('rp-input', 'rp-mic-btn')" title="Use Microphone">🎤</button>
-        <input type="text" id="rp-input" placeholder="Write or speak your Spanish response..." onkeydown="if(event.key==='Enter')sendRpMsg()"/>
-        <button class="send-btn" id="rp-send-btn" onclick="sendRpMsg()">Send</button>
-        <button class="reveal-all" style="margin-top:0" id="rp-finish-btn" onclick="finishRoleplay()">Finish</button>
-      </div>
-      <div style="font-size:11px;color:var(--color-text-tertiary);margin-top:6px">The AI replies in character and provides gentle corrections based on your assessment profile.</div>
+    <div class="onboarding-progress">
+      <div class="onboarding-dot" id="onb-dot-1"></div>
+      <div class="onboarding-dot" id="onb-dot-2"></div>
+      <div class="onboarding-dot" id="onb-dot-3"></div>
     </div>
-    <div id="rp-placeholder">
-      <div class="card">
-        <div class="card-label">How it works</div>
-        <div class="card-body" style="font-size:14px;color:var(--color-text-secondary)">Choose a scenario and tap New scenario. Speak or type your responses in Spanish.</div>
-      </div>
-    </div>
+    <button class="gen-btn onboarding-btn" id="onboarding-next-btn" onclick="nextOnboardingStep()">Next →</button>
+    <button class="onboarding-skip" onclick="dismissOnboarding()">Skip tour</button>
   </div>
 </div>
 

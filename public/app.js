@@ -1,36 +1,9 @@
-// UI & Tabs
-function escapeHTML(str) {
-  if (!str) return '';
-  return String(str).replace(/[&<>'"]/g, tag => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    "'": '&#39;',
-    '"': '&quot;'
-  }[tag]));
-}
+// ====================================================================
+// Habla Diario — app.js
+// ====================================================================
 
-function showTab(id, el) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
-  const target = document.getElementById('tab-' + id);
-  if (target) target.classList.add('on');
-  if (el) el.classList.add('on');
-  if (id === 'home') loadStatus();
-}
-
-function loading() {
-  return `<div class="loading"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>Generating...</span></div>`;
-}
-
-function msgHTML(type, text, label) {
-  const safeText = escapeHTML(text);
-  const safeLabel = escapeHTML(label);
-  let btn = type === 'waiter' ? `<button class="speaker-btn" onclick="speakText(this.parentElement.innerText.replace('${safeLabel}', ''))">🔊</button>` : '';
-  return `<div class="msg ${type}"><div class="msg-label">${safeLabel}</div>${safeText}${btn}</div>`;
-}
-
-// State
+// --- Auth State ---
+let currentUser = null;
 let assessmentHistory = [];
 let rpHistory = [];
 let rpScenario = "";
@@ -41,40 +14,248 @@ let isRapidFire = false;
 let isMissionActive = false;
 let stopSessionRequested = false;
 
-// Initial Load
-async function loadStatus() {
+// --- Utilities ---
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str).replace(/[&<>'"]/g, tag => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+  }[tag]));
+}
+
+function loading() {
+  return `<div class="loading"><div class="dot"></div><div class="dot"></div><div class="dot"></div><span>Generating...</span></div>`;
+}
+
+function msgHTML(type, text, label) {
+  const safeText = escapeHTML(text);
+  const safeLabel = escapeHTML(label);
+  return `<div class="msg ${type}"><div class="msg-label">${safeLabel}</div>${safeText}</div>`;
+}
+
+// --- API Helper ---
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// --- Tabs ---
+function showTab(id, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.tb').forEach(t => t.classList.remove('on'));
+  const target = document.getElementById('tab-' + id);
+  if (target) target.classList.add('on');
+  if (el) el.classList.add('on');
+  if (id === 'home') loadStatus();
+  if (id === 'profile') loadProfile();
+}
+
+// --- Auth UI ---
+function showLogin() {
+  document.getElementById('signup-form').style.display = 'none';
+  document.getElementById('login-form').style.display = 'block';
+  document.getElementById('login-error').textContent = '';
+  document.getElementById('signup-error').textContent = '';
+}
+
+function showSignup() {
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('signup-form').style.display = 'block';
+  document.getElementById('login-error').textContent = '';
+  document.getElementById('signup-error').textContent = '';
+}
+
+async function signup() {
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const errEl = document.getElementById('signup-error');
+  errEl.textContent = '';
+
+  if (!email) { errEl.textContent = 'Email is required.'; return; }
+  if (password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
+
   try {
-    const res = await fetch('/api/user/status');
-    const data = await res.json();
+    document.querySelector('#signup-form .auth-btn').disabled = true;
+    const data = await api('/api/auth/signup', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    });
+    if (data.success) {
+      currentUser = data.user;
+      document.getElementById('auth-overlay').style.display = 'none';
+      document.getElementById('user-menu').style.display = 'block';
+      document.getElementById('header-user-btn').style.display = 'flex';
+      updateUserHeader();
+      localStorage.removeItem('habla_onboarding_done');
+      loadStatus();
+      setTimeout(showOnboarding, 800);
+      showConfetti();
+    }
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
+  document.querySelector('#signup-form .auth-btn').disabled = false;
+}
+
+async function login() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+
+  if (!email || !password) { errEl.textContent = 'Email and password required.'; return; }
+
+  try {
+    document.querySelector('#login-form .auth-btn').disabled = true;
+    const data = await api('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    });
+    if (data.success) {
+      currentUser = data.user;
+      document.getElementById('auth-overlay').style.display = 'none';
+      document.getElementById('user-menu').style.display = 'block';
+      document.getElementById('header-user-btn').style.display = 'flex';
+      updateUserHeader();
+      loadStatus();
+    }
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
+  document.querySelector('#login-form .auth-btn').disabled = false;
+}
+
+async function logout() {
+  try {
+    await api('/api/auth/logout', { method: 'POST' });
+  } catch(e) {}
+  currentUser = null;
+  userProfile = null;
+  document.getElementById('auth-overlay').style.display = 'flex';
+  document.getElementById('user-menu').style.display = 'none';
+  document.getElementById('header-user-btn').style.display = 'none';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+}
+
+function toggleUserMenu() {
+  const menu = document.getElementById('user-menu');
+  menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+function updateUserHeader() {
+  if (currentUser) {
+    document.getElementById('header-user-icon').textContent = currentUser.email ? '👤' : '👤';
+    document.getElementById('user-name').textContent = currentUser.username || currentUser.email.split('@')[0];
+    document.getElementById('user-email').textContent = currentUser.email;
+  }
+}
+
+// Check auth on load
+async function checkAuth() {
+  try {
+    const data = await api('/api/auth/me');
+    if (data.authenticated) {
+      currentUser = data.user;
+      document.getElementById('auth-overlay').style.display = 'none';
+      document.getElementById('user-menu').style.display = 'block';
+      document.getElementById('header-user-btn').style.display = 'flex';
+      updateUserHeader();
+      loadStatus();
+      
+      // Show onboarding for new users (no level set = first time)
+      if (!localStorage.getItem('habla_onboarding_done')) {
+        setTimeout(showOnboarding, 800);
+      }
+      return;
+    }
+  } catch(e) {}
+  // Show auth overlay
+  document.getElementById('auth-overlay').style.display = 'flex';
+  document.getElementById('user-menu').style.display = 'none';
+  document.getElementById('header-user-btn').style.display = 'none';
+}
+
+// --- Load Profile Tab ---
+async function loadProfile() {
+  if (!currentUser) return;
+  document.getElementById('prof-email').textContent = currentUser.email;
+  document.getElementById('prof-joined').textContent = 'Recently';
+  
+  try {
+    const data = await api('/api/user/status');
+    if (data.profile && data.profile.level) {
+      document.getElementById('prof-level').textContent = data.profile.level;
+    }
+  } catch(e) {}
+  
+  document.getElementById('prof-tier').textContent = currentUser.isPaid ? 'Premium' : 'Free';
+}
+
+// --- Status & Home ---
+async function loadStatus() {
+  if (!currentUser) return;
+  try {
+    const data = await api('/api/user/status');
     userProfile = data.profile;
     
-    document.getElementById('stat-streak').innerText = data.progress.streak || 0;
-    document.getElementById('stat-mins').innerText = data.progress.total_minutes || 0;
-    document.getElementById('stat-drills').innerText = data.progress.drills_done || 0;
+    const streak = data.progress.streak || 0;
+    const mins = data.progress.total_minutes || 0;
+    const drills = data.progress.drills_done || 0;
     
-    // UI logic for first-timer vs repeat user on HOME tab
-    const intro = document.getElementById('home-assessment-intro');
-    const profileCard = document.getElementById('home-profile');
-    const assessmentArea = document.getElementById('home-assessment-area');
-
+    document.getElementById('stat-streak').innerText = streak;
+    document.getElementById('stat-drills').innerText = drills;
+    
+    // Animate progress ring
+    const goal = 15;
+    const pct = Math.min(mins / goal, 1);
+    const circumference = 2 * Math.PI * 50; // r=50
+    const offset = circumference * (1 - pct);
+    const ringEl = document.getElementById('progress-ring-fill');
+    if (ringEl) {
+      ringEl.style.strokeDasharray = circumference;
+      ringEl.style.strokeDashoffset = circumference;
+      // Trigger animation on next frame
+      requestAnimationFrame(() => {
+        ringEl.style.strokeDashoffset = offset;
+      });
+      // Color based on progress
+      if (pct >= 1) ringEl.style.stroke = '#48C9B0';
+      else if (pct >= 0.5) ringEl.style.stroke = '#FFD93D';
+      else ringEl.style.stroke = '#6C63FF';
+    }
+    document.getElementById('ring-mins').innerText = mins;
+    
+    // Level badge
+    const levelBadge = document.getElementById('header-level-badge-sm');
+    const levelBadgeMenu = document.getElementById('header-level-badge');
+    
     if (userProfile && userProfile.level) {
       document.getElementById('stat-level').innerText = userProfile.level;
+      levelBadge.textContent = userProfile.level;
+      levelBadge.style.display = 'inline-flex';
+      levelBadgeMenu.textContent = userProfile.level;
       
-      // Show results, Hide intro
-      intro.style.display = 'none';
-      profileCard.style.display = 'block';
+      document.getElementById('home-assessment-intro').style.display = 'none';
+      document.getElementById('home-profile').style.display = 'block';
       
-      // Update data
       document.getElementById('home-prof-level').innerText = userProfile.level;
       document.getElementById('home-prof-str').innerText = userProfile.strengths;
       document.getElementById('home-prof-weak').innerText = userProfile.weaknesses;
       const date = new Date(userProfile.last_assessed);
       document.getElementById('home-prof-date').innerText = date.toLocaleDateString();
     } else {
-      // First timer
       document.getElementById('stat-level').innerText = '?';
-      intro.style.display = 'block';
-      profileCard.style.display = 'none';
+      levelBadge.style.display = 'none';
+      document.getElementById('home-assessment-intro').style.display = 'block';
+      document.getElementById('home-profile').style.display = 'none';
     }
   } catch (e) {
     console.error(e);
@@ -89,8 +270,7 @@ async function reviewMistakes() {
   area.scrollIntoView({ behavior: 'smooth' });
 
   try {
-    const res = await fetch('/api/user/mistakes');
-    const data = await res.json();
+    const data = await api('/api/user/mistakes');
     
     if (!data.length) {
       list.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-muted);">No mistakes found yet. Keep practicing!</div>`;
@@ -110,12 +290,89 @@ async function reviewMistakes() {
   }
 }
 
-// Voice Integration (Web Speech API)
+// --- Confetti ---
+function showConfetti() {
+  const colors = ['#6C63FF', '#FF6B6B', '#FFD93D', '#48C9B0', '#C084FC'];
+  const container = document.createElement('div');
+  container.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;overflow:hidden;';
+  document.body.appendChild(container);
+  
+  for (let i = 0; i < 50; i++) {
+    const confetti = document.createElement('div');
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const left = Math.random() * 100;
+    const delay = Math.random() * 2;
+    const size = Math.random() * 10 + 5;
+    confetti.style.cssText = `
+      position:absolute;left:${left}%;top:-20px;width:${size}px;height:${size}px;
+      background:${color};border-radius:${Math.random() > 0.5 ? '50%' : '2px'};
+      animation:confettiFall ${Math.random() * 2 + 2}s ease-in ${delay}s forwards;
+    `;
+    container.appendChild(confetti);
+  }
+  
+  setTimeout(() => container.remove(), 4000);
+}
+
+// Inject confetti keyframes
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `@keyframes confettiFall { 0% { opacity:1; transform:translateY(0) rotate(0deg); } 100% { opacity:0; transform:translateY(100vh) rotate(720deg); } }`;
+document.head.appendChild(styleSheet);
+
+// --- Onboarding ---
+let onboardingStep = 1;
+
+function showOnboarding() {
+  document.getElementById('onboarding-overlay').style.display = 'flex';
+  onboardingStep = 1;
+  document.getElementById('onboarding-step-1').style.display = 'block';
+  document.getElementById('onboarding-step-2').style.display = 'none';
+  document.getElementById('onboarding-step-3').style.display = 'none';
+  document.querySelectorAll('.onboarding-dot').forEach((d, i) => {
+    d.classList.toggle('active', i === 0);
+  });
+  document.getElementById('onboarding-next-btn').textContent = 'Next →';
+}
+
+function nextOnboardingStep() {
+  // Hide current step
+  document.getElementById(`onboarding-step-${onboardingStep}`).style.display = 'none';
+  document.querySelectorAll('.onboarding-dot')[onboardingStep - 1].classList.remove('active');
+  
+  onboardingStep++;
+  
+  if (onboardingStep > 3) {
+    dismissOnboarding();
+    return;
+  }
+  
+  document.getElementById(`onboarding-step-${onboardingStep}`).style.display = 'block';
+  document.querySelectorAll('.onboarding-dot')[onboardingStep - 1].classList.add('active');
+  
+  if (onboardingStep === 3) {
+    document.getElementById('onboarding-next-btn').textContent = 'Let\'s go! 🎉';
+  } else {
+    document.getElementById('onboarding-next-btn').textContent = 'Next →';
+  }
+  
+  // Re-trigger card animation
+  const card = document.getElementById('onboarding-card');
+  card.style.animation = 'none';
+  card.offsetHeight; // reflow
+  card.style.animation = 'bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+}
+
+function dismissOnboarding() {
+  document.getElementById('onboarding-overlay').style.display = 'none';
+  localStorage.setItem('habla_onboarding_done', 'true');
+}
+
+// --- Voice Integration ---
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
 if (SpeechRecognition) {
   recognition = new SpeechRecognition();
-  recognition.lang = 'es-ES'; // Spanish input
+  recognition.lang = 'es-ES';
   recognition.interimResults = false;
   recognition.maxAlternatives = 1;
 }
@@ -136,29 +393,19 @@ function toggleMic(inputId, btnId) {
 
   recognition.onresult = (event) => {
     const transcript = event.results[0][0].transcript;
-    const confidence = event.results[0][0].confidence;
     input.value = transcript;
     btn.classList.remove('recording');
     
-    // Display Pronunciation Score (Only for Assessment)
     if (inputId === 'assessment-input') {
       const scoreContainer = document.getElementById('assessment-score-container');
-      const scoreFill = document.getElementById('assessment-score-fill');
-      const scoreVal = document.getElementById('assessment-score-val');
-      
       if (scoreContainer) {
-        let accuracy = Math.round(Math.pow(confidence, 2.5) * 100);
+        const accuracy = Math.round(Math.pow(event.results[0][0].confidence, 2.5) * 100);
+        document.getElementById('assessment-score-fill').style.width = accuracy + '%';
+        document.getElementById('assessment-score-val').innerText = accuracy + '%';
         scoreContainer.style.display = 'flex';
-        scoreFill.style.width = accuracy + '%';
-        scoreVal.innerText = accuracy + '%';
-        
-        if (accuracy >= 88) scoreFill.style.background = 'var(--secondary)';
-        else if (accuracy >= 65) scoreFill.style.background = '#f59e0b';
-        else scoreFill.style.background = '#ef4444';
       }
     }
 
-    // Auto-send after a short delay
     setTimeout(() => {
         if (inputId === 'assessment-input') sendAssessmentMsg();
         else if (inputId === 'rp-input') sendRpMsg();
@@ -182,19 +429,9 @@ function toggleMic(inputId, btnId) {
   }
 }
 
-function speakText(text, onEnd = null) {
-  if (!window.speechSynthesis) return;
-  const cleanText = text.split("CORRECTION:")[0].trim();
-  const utterance = new SpeechSynthesisUtterance(cleanText);
-  utterance.lang = 'es-ES';
-  if (onEnd) {
-    utterance.onend = onEnd;
-  }
-  window.speechSynthesis.speak(utterance);
-}
-
-// Assessment Flow
+// --- Assessment ---
 async function startAssessment() {
+  if (!currentUser) return;
   isMissionActive = false;
   assessmentHistory = [];
   document.getElementById('home-assessment-intro').style.display = 'none';
@@ -204,12 +441,7 @@ async function startAssessment() {
   chatBox.innerHTML = loading();
   
   try {
-    const res = await fetch('/api/assessment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({})
-    });
-    const data = await res.json();
+    const data = await api('/api/assessment', { method: 'POST', body: JSON.stringify({}) });
     chatBox.innerHTML = msgHTML('waiter', data.reply, 'Assessor');
     assessmentHistory.push({ role: "user", parts: [{ text: "Start the assessment." }] });
     assessmentHistory.push({ role: "model", parts: [{ text: data.reply }] });
@@ -234,18 +466,10 @@ async function sendAssessmentMsg() {
   chatBox.scrollTop = chatBox.scrollHeight;
 
   try {
-    const res = await fetch('/api/assessment', {
+    const data = await api('/api/assessment', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ history: assessmentHistory, userMessage: userText })
     });
-    
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(errText);
-    }
-    
-    const data = await res.json();
     
     assessmentHistory.push({ role: "user", parts: [{ text: userText }] });
     loadDiv.remove();
@@ -253,7 +477,8 @@ async function sendAssessmentMsg() {
     if (data.complete) {
       chatBox.innerHTML += msgHTML('waiter', data.reply, 'Assessor');
       document.getElementById('home-assessment-area').style.display = 'none';
-      loadStatus(); // This will show the profile card
+      showConfetti();
+      loadStatus();
     } else {
       const full = data.reply;
       const parts = full.split(/CORRECTION:/i);
@@ -270,19 +495,15 @@ async function sendAssessmentMsg() {
   } catch(e) {
     loadDiv.remove();
     let errorMsg = "An error occurred.";
-    if (e.message.includes("Too many requests")) errorMsg = "You're speaking too fast! Please wait a minute before sending another message (Rate Limit).";
-    else if (e.message.includes("error")) {
-      try { errorMsg = JSON.parse(e.message).error; } catch(err) { errorMsg = e.message; }
-    }
+    if (e.message.includes("Too many requests")) errorMsg = "You're speaking too fast! Please wait a minute (Rate Limit).";
+    else errorMsg = e.message;
     chatBox.innerHTML += `<div style="color:var(--incorrect);text-align:center;padding:10px;font-weight:bold;">${errorMsg}</div>`;
   }
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Drills Flow
-function stopSession() {
-  stopSessionRequested = true;
-}
+// --- Drills ---
+function stopSession() { stopSessionRequested = true; }
 
 async function autoPlayDrills() {
   if (isAutoPlaying || isRapidFire || !lastDrills.length) return;
@@ -372,12 +593,10 @@ async function generateDrills() {
   btn.disabled = true;
 
   try {
-    const res = await fetch('/api/generate/drills', {
+    const data = await api('/api/generate/drills', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ verb, tense, pattern })
     });
-    const data = await res.json();
     lastDrills = data.drills;
     
     const conj = data.conjugation;
@@ -390,19 +609,15 @@ async function generateDrills() {
 
     const conjHTML = conj ? `
       <div class="card" style="margin-top: 15px; background: rgba(0,0,0,0.02); border: 1px dashed var(--border-color);">
-        <div class="card-label" style="background: var(--primary); color: white;">Conjugation Table: ${conj.verb}</div>
+        <div class="card-label" style="background: var(--primary); color: white;">Conjugation: ${conj.verb}</div>
         <div class="card-body">
-          <div style="font-size: 12px; text-transform: uppercase; color: var(--text-light); font-weight: 800; margin-bottom: 8px;">${conj.tense} · ${conj.type}</div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, auto); grid-auto-flow: column; gap: 8px; margin-bottom: 12px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, auto); grid-auto-flow: column; gap: 8px;">
             <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">YO</span><br><strong style="font-size:16px;">${formatConj(conj.yo)}</strong></div>
             <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">TÚ</span><br><strong style="font-size:16px;">${formatConj(conj.tu)}</strong></div>
             <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">ÉL/ELLA/UD.</span><br><strong style="font-size:16px;">${formatConj(conj.el_ella_usted)}</strong></div>
             <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">NOSOTROS/AS</span><br><strong style="font-size:16px;">${formatConj(conj.nosotros_as)}</strong></div>
             <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">VOSOTROS/AS</span><br><strong style="font-size:16px;">${formatConj(conj.vosotros_as)}</strong></div>
             <div class="drill-item" style="padding: 8px; margin: 0; cursor: default;"><span style="font-weight:800; color:var(--text-light); font-size:11px;">ELLOS/ELLAS/UDS.</span><br><strong style="font-size:16px;">${formatConj(conj.ellos_ellas_ustedes)}</strong></div>
-          </div>
-          <div style="font-size: 13px; line-height: 1.4; color: var(--text-main); padding: 10px; background: white; border-radius: 8px; border: 1px solid var(--border-color);">
-            <strong>Rule:</strong> ${conj.rule_explanation}
           </div>
         </div>
       </div>
@@ -411,33 +626,34 @@ async function generateDrills() {
     out.innerHTML = `<div class="card">
       <div class="card-label">${verb} · ${tense} · ${pattern}</div>
       <div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap;">
-        <button class="gen-btn" style="flex:1" id="autoplay-btn" onclick="autoPlayDrills()">Auto-Play (Hands-Free)</button>
+        <button class="gen-btn" style="flex:1" id="autoplay-btn" onclick="autoPlayDrills()">Auto-Play</button>
         <button class="gen-btn" style="flex:1; background:var(--warning); border-bottom-color:var(--warning-shadow);" id="rapid-btn" onclick="startRapidFireDrills()">🚀 Rapid-Fire</button>
-        <button class="gen-btn" style="flex:1; background:var(--incorrect); border-bottom-color:var(--incorrect-shadow); display:none;" id="stop-btn" onclick="stopSession()">⏹ Stop session</button>
+        <button class="gen-btn" style="flex:1; background:var(--incorrect); border-bottom-color:var(--incorrect-shadow); display:none;" id="stop-btn" onclick="stopSession()">⏹ Stop</button>
       </div>
-      ${data.drills.map((d,i) => `<div class="drill-item" onclick="this.classList.toggle('revealed')">
+      ${data.drills.map(d => `<div class="drill-item" onclick="this.classList.toggle('revealed')">
         <div class="drill-es">${d.base}</div>
-        <div class="drill-cue">Cue: <strong>${d.cue}</strong> &nbsp;·&nbsp; <span style="color:var(--text-light)">${d.translation}</span></div>
-        <div class="drill-ans">→ ${d.answer} <button class="speaker-btn" style="position:relative;top:0;right:0;margin-left:8px" onclick="event.stopPropagation(); speakText('${d.answer.replace(/'/g, "\\'")}')">🔊</button></div>
+        <div class="drill-cue">Cue: <strong>${d.cue}</strong> · <span style="color:var(--text-light)">${d.translation}</span></div>
+        <div class="drill-ans">→ ${d.answer}</div>
       </div>`).join('')}
-      <button class="reveal-all" style="width:100%; margin-top:10px; background:var(--bg-input); color:var(--text-main)" onclick="document.querySelectorAll('.drill-item').forEach(d=>d.classList.add('revealed'))">Reveal all answers</button>
+      <button class="reveal-all" style="width:100%; margin-top:10px;" onclick="document.querySelectorAll('.drill-item').forEach(d=>d.classList.add('revealed'))">Reveal all answers</button>
     </div>
     ${conjHTML}`;
   } catch(e) {
-    out.innerHTML = `<div class="card"><div class="card-body" style="color:red">Generation failed.</div></div>`;
+    out.innerHTML = `<div class="card"><div class="card-body" style="color:red">${e.message}</div></div>`;
   }
   btn.disabled = false;
 }
 
 async function startDailyMission() {
+  if (!currentUser) return;
   if (!userProfile || !userProfile.level) {
-    alert("Please take the Assessment or select your level first so we can tailor your practice.");
-    showTab('home', document.querySelector('.tab:nth-child(1)'));
+    alert("Please take the Assessment or select your level first.");
+    showTab('home', document.querySelector('.tb[data-tab="home"]'));
     return;
   }
   
   isMissionActive = true;
-  showTab('drill', document.querySelector('.tab:nth-child(2)'));
+  showTab('drill', document.querySelector('.tb[data-tab="drill"]'));
   document.getElementById('drill-verb').value = "tener";
   document.getElementById('drill-tense').value = userProfile.level.startsWith('A') ? "Preterite (Past)" : "Present Subjunctive";
   document.getElementById('drill-pattern').value = "Translation";
@@ -453,23 +669,18 @@ async function setManualLevel(source = 'intro') {
   const selectId = source === 'profile' ? 'manual-level-select-profile' : 'manual-level-select';
   const level = document.getElementById(selectId).value;
   try {
-    const res = await fetch('/api/user/level', {
+    const data = await api('/api/user/level', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ level })
     });
-    if (res.ok) {
-      loadStatus();
-    } else {
-      alert("Failed to set level.");
-    }
+    if (data.success) loadStatus();
   } catch (e) {
     console.error(e);
     alert("Failed to set level.");
   }
 }
 
-// Vocab Flow
+// --- Vocab ---
 async function generateVocab() {
   const theme = document.getElementById('vocab-theme').value;
   const out = document.getElementById('vocab-output');
@@ -478,38 +689,30 @@ async function generateVocab() {
   btn.disabled = true;
 
   try {
-    const res = await fetch('/api/generate/vocab', {
+    const data = await api('/api/generate/vocab', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ theme })
     });
-    const data = await res.json();
     
     out.innerHTML = `<div style="margin-bottom:8px;font-size:13px;color:var(--text-muted)">Theme: <strong>${theme}</strong></div>
     <div class="vocab-grid">
       ${data.map(v => `<div class="vocab-card" onclick="this.classList.toggle('revealed')">
-        <div class="vocab-es">${v.es} <button class="speaker-btn" style="position:relative;top:0;right:0;margin-left:8px" onclick="event.stopPropagation(); speakText('${v.es.replace(/'/g, "\\'")}')">🔊</button></div>
+        <div class="vocab-es">${v.es}</div>
         <div class="vocab-en">${v.en}</div>
         <div class="vocab-ex">
-          ${v.example_es} <button class="speaker-btn" style="position:relative;top:0;right:0;margin-left:8px" onclick="event.stopPropagation(); speakText('${v.example_es.replace(/'/g, "\\'")}')">🔊</button><br><em>${v.example_en}</em>
-          <div style="margin-top: 10px;">
-            <button class="gen-btn" style="font-size: 12px; padding: 4px 8px;" onclick="event.stopPropagation(); const b = this.nextElementSibling; b.style.display = b.style.display === 'block' ? 'none' : 'block';">Synonyms & Antonyms</button>
-            <div style="display: none; margin-top: 8px; padding: 8px; background: rgba(0,0,0,0.05); border-radius: 4px; font-size: 0.9em; color: var(--text-main);">
-              <strong>Synonyms:</strong> ${v.synonyms || 'N/A'}<br>
-              <strong>Antonyms:</strong> ${v.antonyms || 'N/A'}
-            </div>
-          </div>
+          ${v.example_es}<br><em>${v.example_en}</em>
         </div>
       </div>`).join('')}
     </div>`;
   } catch(e) {
-    out.innerHTML = `<div class="card"><div class="card-body" style="color:red">Generation failed.</div></div>`;
+    out.innerHTML = `<div class="card"><div class="card-body" style="color:red">${e.message}</div></div>`;
   }
   btn.disabled = false;
 }
 
-// Roleplay Flow
+// --- Roleplay ---
 async function startRoleplay() {
+  if (!currentUser) return;
   rpScenario = document.getElementById('rp-scenario').value;
   rpHistory = [];
   document.getElementById('rp-placeholder').style.display = 'none';
@@ -520,12 +723,10 @@ async function startRoleplay() {
   document.getElementById('rp-start-btn').disabled = true;
 
   try {
-    const res = await fetch('/api/roleplay', {
+    const data = await api('/api/roleplay', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scenario: rpScenario })
     });
-    const data = await res.json();
     rpHistory.push({ role: "user", parts: [{ text: "Start the scenario." }] });
     rpHistory.push({ role: "model", parts: [{ text: data.reply }] });
     chatBox.innerHTML = msgHTML('waiter', data.reply, 'Partner');
@@ -543,11 +744,6 @@ function finishRoleplay() {
   document.getElementById('rp-chat').innerHTML = '';
   document.getElementById('rp-tag').textContent = '';
   document.getElementById('rp-start-btn').disabled = false;
-  
-  const scoreContainer = document.getElementById('rp-score-container');
-  if (scoreContainer) scoreContainer.style.display = 'none';
-  
-  console.log("Roleplay finished.");
 }
 
 async function sendRpMsg() {
@@ -577,18 +773,10 @@ async function sendRpMsg() {
   chatBox.scrollTop = chatBox.scrollHeight;
 
   try {
-    const res = await fetch('/api/roleplay', {
+    const data = await api('/api/roleplay', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scenario: rpScenario, history: rpHistory, userMessage: userText })
     });
-    
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(errText);
-    }
-    
-    const data = await res.json();
     
     rpHistory.push({ role: "user", parts: [{ text: userText }] });
     loadDiv.remove();
@@ -609,18 +797,23 @@ async function sendRpMsg() {
   } catch(e) {
     loadDiv.remove();
     let errorMsg = "An error occurred.";
-    if (e.message.includes("Too many requests")) errorMsg = "You're speaking too fast! Please wait a minute before sending another message (Rate Limit).";
-    else if (e.message.includes("error")) {
-      try { errorMsg = JSON.parse(e.message).error; } catch(err) { errorMsg = e.message; }
-    }
+    if (e.message.includes("Too many requests")) errorMsg = "You're speaking too fast! Please wait a minute (Rate Limit).";
+    else errorMsg = e.message;
     chatBox.innerHTML += `<div style="color:var(--incorrect);text-align:center;padding:10px;font-weight:bold;">${errorMsg}</div>`;
   }
   document.getElementById('rp-send-btn').disabled = false;
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// Init
-loadStatus();
+// --- Speech ---
+function speakText(text, onEnd = null) {
+  if (!window.speechSynthesis) return;
+  const cleanText = text.split("CORRECTION:")[0].trim();
+  const utterance = new SpeechSynthesisUtterance(cleanText);
+  utterance.lang = 'es-ES';
+  if (onEnd) utterance.onend = onEnd;
+  window.speechSynthesis.speak(utterance);
+}
 
-
-
+// --- Init ---
+checkAuth();

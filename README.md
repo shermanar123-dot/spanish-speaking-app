@@ -1,59 +1,53 @@
 # Habla Diario - Spanish Speaking App
 
-A full-stack web application designed for daily Spanish speaking practice, utilizing the Gemini API for personalized assessments, FSI-style drills, vocabulary generation, and roleplay scenarios.
+A full-stack web application for daily Spanish speaking practice, using the Gemini API for personalized assessments, FSI-style drills, vocabulary generation, and roleplay scenarios.
 
 ## Features
 
-*   **Personalized Assessment:** Evaluates your CEFR level through an interactive interview.
-*   **FSI Drills:** Generates tailored substitution, transformation, response, and translation drills.
-*   **Vocabulary Generation:** Creates high-frequency vocabulary lists with synonyms and antonyms.
-*   **Roleplay:** Practice real-world scenarios with a conversational AI partner.
-*   **Voice Integration:** Uses the browser's Web Speech API for voice input and output.
+- **Personalized Assessment:** 4-question OPI-style interview to determine your CEFR level (A1-C1)
+- **FSI Drills:** 15 verbs × 6 tenses × 5 drill patterns with Auto-Play and Rapid-Fire modes
+- **Vocabulary:** 20 high-frequency words per theme with example sentences, synonyms, and antonyms
+- **Roleplay:** 13 scenarios with real-time correction and coach celebrations
+- **Voice Integration:** Web Speech API for mic input and Spanish TTS output
+- **Progress Tracking:** Daily goal ring, streak counter, mistake review
+- **Onboarding:** 3-step tour for new users
 
-## Prerequisites
+## Quick Start (Docker)
 
-*   [Node.js](https://nodejs.org/) (v16 or higher recommended)
-*   A Google Gemini API Key
+```bash
+# Clone and run
+cp .env.example .env
+# Edit .env to add your GEMINI_API_KEY
+docker compose up -d
+# Open http://localhost:8000
+```
 
-## Setup and Installation
+## Manual Start
 
-1.  **Clone or navigate to the project directory:**
-    \`\`\`powershell
-    cd C:\\Users\\Joshua\\MyGeminiProject\\Spanish-speaking-app
-    \`\`\`
+```bash
+npm install
+cp .env.example .env
+# Edit .env to add your GEMINI_API_KEY
+node server.js
+# Open http://localhost:3000
+```
 
-2.  **Install dependencies:**
-    \`\`\`powershell
-    npm install
-    \`\`\`
+## Railway Deploy
 
-3.  **Environment Variables:**
-    Create a \`.env\` file in the root directory (if one does not already exist) and add your Gemini API key:
-    \`\`\`env
-    GEMINI_API_KEY=your_actual_api_key_here
-    PORT=3000
-    # Optional Security Settings:
-    # APP_USER=admin
-    # APP_PASSWORD=secret
-    \`\`\`
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/...)
 
-## How to Run Locally (Without Gemini CLI)
+1. Connect this repo to Railway
+2. Set `GEMINI_API_KEY`, `SESSION_SECRET`, and `FRONTEND_URL` in Railway dashboard
+3. Add a volume mount at `/usr/src/app/app.db` for SQLite persistence
+4. Deploy — Railway auto-detects the Dockerfile
 
-To run the application directly in PowerShell or any terminal:
+## Environment Variables
 
-1.  **Start the server:**
-    \`\`\`powershell
-    node server.js
-    \`\`\`
-    *Note: The terminal will stay active while the server is running. To stop the server, press \`Ctrl + C\`.*
-
-2.  **Access the App:**
-    Open your web browser and navigate to:
-    [http://localhost:3000](http://localhost:3000)
-
-### Development Tip: Auto-Restart
-If you are modifying the code and want the server to automatically restart when you save a file, you can use \`nodemon\`:
-\`\`\`powershell
-npm install -g nodemon
-nodemon server.js
-\`\`\`
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GEMINI_API_KEY` | Yes | Google Gemini API key |
+| `SESSION_SECRET` | Yes | Random string for session encryption |
+| `PORT` | No | Server port (default: 3000) |
+| `FRONTEND_URL` | No | Comma-separated CORS origins |
+| `FREE_USER_LIMIT` | No | Max free users (default: 20) |
+| `NODE_ENV` | No | `development` or `production` |
