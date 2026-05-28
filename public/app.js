@@ -57,6 +57,10 @@ function showTab(id, el) {
   const stopBtn = document.getElementById('stop-btn');
   if (stopBtn) stopBtn.style.display = 'none';
 
+  // Close user menu on tab switch
+  const menu = document.getElementById('user-menu');
+  if (menu) menu.style.display = 'none';
+
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
   document.querySelectorAll('.tb').forEach(t => t.classList.remove('on'));
   const target = document.getElementById('tab-' + id);
@@ -158,6 +162,16 @@ function toggleUserMenu() {
   const menu = document.getElementById('user-menu');
   menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
 }
+
+// Close user menu when clicking outside it
+document.addEventListener('click', function(e) {
+  const menu = document.getElementById('user-menu');
+  const btn = document.getElementById('header-user-btn');
+  if (menu && menu.style.display === 'block' && 
+      !menu.contains(e.target) && !btn.contains(e.target)) {
+    menu.style.display = 'none';
+  }
+});
 
 function updateUserHeader() {
   if (currentUser) {
