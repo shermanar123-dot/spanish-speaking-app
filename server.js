@@ -6,6 +6,7 @@ const basicAuth = require('express-basic-auth');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
 const { GoogleGenAI } = require('@google/genai');
+const { Resend } = require('resend');
 const db = require('./database');
 const prompts = require('./prompt_templates');
 
@@ -97,9 +98,57 @@ function checkFreeTier(req, res, next) {
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 const MODEL_NAME = 'gemini-2.5-flash';
 
-// ---- AUTH ROUTES ----
+// Initialize Resend (optional — falls back gracefully if no key set)
+function getResend() {
+  if (process.env.RESEND_API_KEY) {
+    try {
+      return new Resend(process.env.RESEND_API_KEY);
+    } catch(e) {
+      console.warn('Resend init failed:', e.message);
+    }
+  }
+  return null;
+}
 
-// Signup
+// ---- AUTH ROUTES ---- //
+
+// Generate a 6-digit verification code
+function generateCode() {
+  return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+// Helper: send verification email
+async function sendVerificationEmail(email, code) {
+  const resend = getResend();
+  if (!resend) {
+    console.log(`\n📧 NO RESEND KEY — verification code for ${email}: ${code}\n`);
+    return true; // pretend success for development
+  }
+  try {
+    await resend.emails.send({
+      from: 'Habla Diario <verify@habladiario.app>',
+      to: email,
+      subject: 'Your Habla Diario verification code',
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+          <h2 style="color:#58CC02;">Habla Diario</h2>
+          <p style="font-size:16px;color:#333;">Your verification code is:</p>
+          <div style="font-size:36px;font-weight:bold;color:#58CC02;letter-spacing:8px;text-align:center;padding:24px;background:#f0fdf0;border-radius:12px;margin:16px 0;">
+            ${code}
+          </div>
+          <p style="font-size:14px;color:#888;">This code expires in 10 minutes.</p>
+          <p style="font-size:14px;color:#888;">If you didn't create an account, you can ignore this email.</p>
+        </div>
+      `
+    });
+    return true;
+  } catch (err) {
+    console.error('Failed to send verification email:', err);
+    return false;
+  }
+}
+
+// Step 1: Signup — register pending user, send verification code
 app.post('/api/auth/signup', async (req, res) => {
   const { email, password } = req.body;
 
@@ -117,55 +166,200 @@ app.post('/api/auth/signup', async (req, res) => {
   }
 
   try {
-    // Check if email already exists
+    // Check if email already exists AND verified
     const existing = await new Promise((resolve, reject) => {
-      db.get('SELECT id FROM users WHERE email = ?', [email.toLowerCase()], (err, row) => {
+      db.get('SELECT id, email_verified FROM users WHERE email = ?', [email.toLowerCase()], (err, row) => {
         if (err) reject(err);
         else resolve(row);
       });
     });
 
-    if (existing) {
+    if (existing && existing.email_verified) {
       return res.status(409).json({ error: 'An account with this email already exists.' });
     }
 
     // Check free tier limit
     const userCount = await new Promise((resolve, reject) => {
-      db.get('SELECT COUNT(*) as cnt FROM users WHERE is_admin = 0', [], (err, row) => {
+      db.get('SELECT COUNT(*) as cnt FROM users WHERE is_admin = 0 AND email_verified = 1', [], (err, row) => {
         if (err) reject(err);
         else resolve(row ? row.cnt : 0);
       });
     });
 
     if (userCount >= FREE_USER_LIMIT && !req.session.isPaid) {
-      return res.status(403).json({ error: `Free tier is limited to ${FREE_USER_LIMIT} users. Please contact the developer for access.` });
+      return res.status(403).json({ error: `Free tier is limited to ${FREE_USER_LIMIT} users.` });
     }
 
+    // If existing unverified user, reuse; otherwise create placeholder
+    let userId;
     const hashedPassword = await bcrypt.hash(password, 10);
-    
-    const result = await new Promise((resolve, reject) => {
-      db.run('INSERT INTO users (email, username, password_hash, created_at) VALUES (?, ?, ?, datetime("now"))',
-        [email.toLowerCase(), email.split('@')[0], hashedPassword],
+    const username = email.split('@')[0];
+
+    if (existing && !existing.email_verified) {
+      userId = existing.id;
+      // Update their password hash in case they changed it
+      await new Promise((resolve, reject) => {
+        db.run('UPDATE users SET password_hash = ?, username = ? WHERE id = ?', [hashedPassword, username, userId], (err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+    } else {
+      userId = await new Promise((resolve, reject) => {
+        db.run('INSERT INTO users (email, username, password_hash, email_verified, created_at) VALUES (?, ?, ?, 0, datetime("now"))',
+          [email.toLowerCase(), username, hashedPassword],
+          function(err) {
+            if (err) reject(err);
+            else resolve(this.lastID);
+          }
+        );
+      });
+      // Create progress row
+      db.run('INSERT OR IGNORE INTO progress (user_id, total_minutes, drills_done, streak, last_active) VALUES (?, 0, 0, 0, date("now"))', [userId]);
+    }
+
+    // Generate and store verification code
+    const code = generateCode();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+    // Delete any old codes for this email
+    db.run('DELETE FROM verification_codes WHERE email = ?', [email.toLowerCase()]);
+
+    await new Promise((resolve, reject) => {
+      db.run('INSERT INTO verification_codes (email, code, password_hash, username, expires_at) VALUES (?, ?, ?, ?, ?)',
+        [email.toLowerCase(), code, hashedPassword, username, expiresAt],
         function(err) {
           if (err) reject(err);
-          else resolve(this.lastID);
+          else resolve();
         }
       );
     });
 
-    // Create progress row for new user
-    db.run('INSERT OR IGNORE INTO progress (user_id, total_minutes, drills_done, streak, last_active) VALUES (?, 0, 0, 0, date("now"))', [result]);
+    // Send the email
+    await sendVerificationEmail(email, code);
 
-    req.session.userId = result;
-    req.session.isPaid = false;
-    req.session.isAdmin = false;
-
-    res.json({ success: true, user: { id: result, email: email.toLowerCase(), username: email.split('@')[0] } });
+    res.json({
+      success: true,
+      message: 'Verification code sent to your email.',
+      email: email.toLowerCase()
+    });
   } catch (err) {
     console.error('Signup error:', err);
     res.status(500).json({ error: 'Signup failed. Please try again.' });
   }
 });
+
+// Step 2: Verify the code
+app.post('/api/auth/verify-code', async (req, res) => {
+  const { email, code } = req.body;
+
+  if (!email || !code) {
+    return res.status(400).json({ error: 'Email and code are required.' });
+  }
+
+  try {
+    const row = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT * FROM verification_codes
+         WHERE email = ? AND code = ? AND used = 0 AND expires_at > datetime('now')
+         ORDER BY created_at DESC LIMIT 1`,
+        [email.toLowerCase(), code],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    if (!row) {
+      return res.status(400).json({ error: 'Invalid or expired verification code.' });
+    }
+
+    // Mark code as used
+    db.run('UPDATE verification_codes SET used = 1 WHERE id = ?', [row.id]);
+
+    // Activate the user account
+    const user = await new Promise((resolve, reject) => {
+      db.get('SELECT id, email, username, is_admin, is_paid FROM users WHERE email = ?', [email.toLowerCase()], (err, user) => {
+        if (err) reject(err);
+        else resolve(user);
+      });
+    });
+
+    if (!user) {
+      return res.status(500).json({ error: 'User not found.' });
+    }
+
+    db.run('UPDATE users SET email_verified = 1 WHERE id = ?', [user.id]);
+
+    // Log them in
+    req.session.userId = user.id;
+    req.session.isPaid = !!user.is_paid;
+    req.session.isAdmin = !!user.is_admin;
+
+    res.json({
+      success: true,
+      user: { id: user.id, email: user.email, username: user.username, isAdmin: !!user.is_admin, isPaid: !!user.is_paid }
+    });
+  } catch (err) {
+    console.error('Verify code error:', err);
+    res.status(500).json({ error: 'Verification failed.' });
+  }
+});
+
+// Resend verification code
+app.post('/api/auth/resend-code', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required.' });
+
+  try {
+    // Check the user exists and is unverified
+    const user = await new Promise((resolve, reject) => {
+      db.get('SELECT id, email_verified FROM users WHERE email = ?', [email.toLowerCase()], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!user) return res.status(400).json({ error: 'No account found with this email.' });
+    if (user.email_verified) return res.status(400).json({ error: 'This email is already verified. Please log in.' });
+
+    // Get the pending code info
+    const pending = await new Promise((resolve, reject) => {
+      db.get(
+        'SELECT password_hash, username FROM verification_codes WHERE email = ? ORDER BY created_at DESC LIMIT 1',
+        [email.toLowerCase()],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    const code = generateCode();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+    db.run('DELETE FROM verification_codes WHERE email = ?', [email.toLowerCase()]);
+
+    await new Promise((resolve, reject) => {
+      db.run('INSERT INTO verification_codes (email, code, password_hash, username, expires_at) VALUES (?, ?, ?, ?, ?)',
+        [email.toLowerCase(), code, pending ? pending.password_hash : '', pending ? pending.username : '', expiresAt],
+        function(err) {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
+
+    await sendVerificationEmail(email, code);
+    res.json({ success: true, message: 'New verification code sent.' });
+  } catch (err) {
+    console.error('Resend code error:', err);
+    res.status(500).json({ error: 'Failed to resend code.' });
+  }
+});
+
+// Login — checks email is verified
 
 // Login
 app.post('/api/auth/login', async (req, res) => {
@@ -185,6 +379,15 @@ app.post('/api/auth/login', async (req, res) => {
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    // Check if email is verified
+    if (!user.email_verified) {
+      return res.status(403).json({
+        error: 'Please verify your email first.',
+        needsVerification: true,
+        email: user.email
+      });
     }
 
     const match = await bcrypt.compare(password, user.password_hash);
@@ -223,6 +426,95 @@ app.get('/api/auth/me', (req, res) => {
     }
     res.json({ authenticated: true, user: { id: user.id, email: user.email, username: user.username, isAdmin: !!user.is_admin, isPaid: !!user.is_paid } });
   });
+});
+
+// ---- PASSWORD RESET (no email service — shows link on screen) ---- //
+const crypto = require('crypto');
+
+// Forgot password: generates a reset token for the given email
+app.post('/api/auth/forgot-password', (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email is required.' });
+
+  // Always return success to prevent email enumeration
+  db.get('SELECT id FROM users WHERE email = ?', [email.toLowerCase()], (err, user) => {
+    if (err || !user) {
+      return res.json({ success: true, message: 'If that email exists, a reset link has been generated.' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+
+    db.run('INSERT INTO reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
+      [user.id, token, expiresAt],
+      function(insertErr) {
+        if (insertErr) {
+          console.error('Token insert error:', insertErr);
+          return res.json({ success: true, message: 'If that email exists, a reset link has been generated.' });
+        }
+
+        // For MVP: return the reset link directly (no email service yet)
+        const resetLink = `${req.protocol}://${req.get('host')}/reset-password?token=${token}`;
+        console.log('🔑 Reset link for', email, ':', resetLink);
+
+        res.json({
+          success: true,
+          token: token, // Return token so the client can show the reset form
+          message: 'Reset link generated. Click below to reset your password.'
+        });
+      }
+    );
+  });
+});
+
+// Verify reset token is valid
+app.get('/api/auth/verify-reset-token', (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).json({ valid: false });
+
+  db.get(
+    `SELECT user_id FROM reset_tokens
+     WHERE token = ? AND used = 0 AND expires_at > datetime('now')`,
+    [token],
+    (err, row) => {
+      if (err || !row) return res.json({ valid: false });
+      res.json({ valid: true });
+    }
+  );
+});
+
+// Reset password using a valid token
+app.post('/api/auth/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) return res.status(400).json({ error: 'Token and password are required.' });
+  if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+
+  try {
+    const row = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT user_id FROM reset_tokens
+         WHERE token = ? AND used = 0 AND expires_at > datetime('now')`,
+        [token],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+
+    if (!row) return res.status(400).json({ error: 'Invalid or expired reset token.' });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Update password and mark token as used
+    db.run('UPDATE users SET password_hash = ? WHERE id = ?', [hashedPassword, row.user_id]);
+    db.run('UPDATE reset_tokens SET used = 1 WHERE token = ?', [token]);
+
+    res.json({ success: true, message: 'Password has been reset. Please log in.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'Failed to reset password.' });
+  }
 });
 
 // ---- API ROUTES (require auth) ----
@@ -472,6 +764,10 @@ app.post('/api/roleplay', requireAuth, async (req, res) => {
 });
 
 // ---- TTS (Text-to-Speech) using OpenAI ---- //
+// In-memory LRU cache: maps text to base64 audio
+const ttsCache = new Map();
+const TTS_CACHE_MAX = 100;
+
 app.post('/api/tts', requireAuth, async (req, res) => {
   const { text, voice: voiceOpt } = req.body;
   if (!text || !text.trim()) {
@@ -479,11 +775,27 @@ app.post('/api/tts', requireAuth, async (req, res) => {
   }
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
   if (!OPENAI_API_KEY) {
-    // Fallback: return a signal for the client to use Web Speech API
     return res.json({ fallback: true });
   }
+
+  const cleaned = text.split("CORRECTION:")[0].trim();
+  if (!cleaned) return res.json({ fallback: true });
+
+  const voice = voiceOpt || 'alloy'; // 'alloy' is clearer for Spanish than 'nova'
+  const cacheKey = `${voice}:${cleaned}`;
+
+  // Check cache
+  if (ttsCache.has(cacheKey)) {
+    const cached = ttsCache.get(cacheKey);
+    // Move to end (LRU)
+    ttsCache.delete(cacheKey);
+    ttsCache.set(cacheKey, cached);
+    res.set({ 'Content-Type': 'audio/mpeg', 'Content-Length': cached.length });
+    return res.send(Buffer.from(cached));
+  }
+
   try {
-    const voice = voiceOpt || 'nova'; // 'nova' is warm & natural in Spanish
+    // Use tts-1 (faster) over tts-1-hd — speed matters more for real-time playback
     const resp = await fetch('https://api.openai.com/v1/audio/speech', {
       method: 'POST',
       headers: {
@@ -491,8 +803,8 @@ app.post('/api/tts', requireAuth, async (req, res) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tts-1-hd',
-        input: text,
+        model: 'tts-1',
+        input: cleaned,
         voice: voice,
         response_format: 'mp3',
         speed: 0.95,
@@ -503,13 +815,21 @@ app.post('/api/tts', requireAuth, async (req, res) => {
       console.error('OpenAI TTS error:', resp.status, errText);
       return res.json({ fallback: true });
     }
-    // Stream the audio back
     const audioBuffer = await resp.arrayBuffer();
+    const buf = Buffer.from(audioBuffer);
+
+    // Cache it
+    if (ttsCache.size >= TTS_CACHE_MAX) {
+      const firstKey = ttsCache.keys().next().value;
+      ttsCache.delete(firstKey);
+    }
+    ttsCache.set(cacheKey, buf);
+
     res.set({
       'Content-Type': 'audio/mpeg',
-      'Content-Length': audioBuffer.byteLength,
+      'Content-Length': buf.length,
     });
-    res.send(Buffer.from(audioBuffer));
+    res.send(buf);
   } catch (err) {
     console.error('TTS error:', err);
     res.json({ fallback: true });

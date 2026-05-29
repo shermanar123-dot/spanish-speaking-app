@@ -21,10 +21,32 @@
       <input type="password" id="login-password" class="auth-input" placeholder="Password" autocomplete="current-password">
       <div id="login-error" class="auth-error"></div>
       <button class="auth-btn gen-btn" onclick="login()">Log In</button>
+      <p class="auth-forgot"><a href="#" onclick="showForgotPassword()">Forgot password?</a></p>
       <p class="auth-switch">Don't have an account? <a href="#" onclick="showSignup()">Sign up</a></p>
     </div>
 
-    <!-- Signup Form -->
+    <!-- Forgot Password Form -->
+    <div id="forgot-form" class="auth-form" style="display:none">
+      <div class="auth-title">Reset your password</div>
+      <p style="color:var(--text-muted); font-size:13px; margin:0 0 12px 0;">Enter your email and we'll generate a reset link.</p>
+      <input type="email" id="forgot-email" class="auth-input" placeholder="Email" autocomplete="email">
+      <div id="forgot-error" class="auth-error"></div>
+      <div id="forgot-success" class="auth-success" style="display:none;"></div>
+      <button class="auth-btn gen-btn" onclick="sendResetLink()">Send Reset Link</button>
+      <p class="auth-switch"><a href="#" onclick="showLogin()">← Back to login</a></p>
+    </div>
+
+    <!-- Reset Password Form (shown after clicking reset link) -->
+    <div id="reset-form" class="auth-form" style="display:none">
+      <div class="auth-title">Choose a new password</div>
+      <p style="color:var(--text-muted); font-size:13px; margin:0 0 12px 0;">Enter your new password (min 6 characters).</p>
+      <input type="password" id="reset-password" class="auth-input" placeholder="New password" autocomplete="new-password">
+      <input type="password" id="reset-password-confirm" class="auth-input" placeholder="Confirm new password" autocomplete="new-password">
+      <div id="reset-error" class="auth-error"></div>
+      <div id="reset-success" class="auth-success" style="display:none;"></div>
+      <button class="auth-btn gen-btn" onclick="submitResetPassword()">Reset Password</button>
+      <p class="auth-switch"><a href="#" onclick="showLogin()">← Back to login</a></p>
+    </div>
     <div id="signup-form" class="auth-form" style="display:none">
       <div class="auth-title">Create your account</div>
       <input type="email" id="signup-email" class="auth-input" placeholder="Email" autocomplete="email">
@@ -32,6 +54,19 @@
       <div id="signup-error" class="auth-error"></div>
       <button class="auth-btn gen-btn" onclick="signup()">Sign Up</button>
       <p class="auth-switch">Already have an account? <a href="#" onclick="showLogin()">Log in</a></p>
+    </div>
+
+    <!-- Verify Code Form (shown after signup) -->
+    <div id="verify-form" class="auth-form" style="display:none">
+      <div class="auth-title">Check your email</div>
+      <p style="color:var(--text-muted); font-size:13px; margin:0 0 12px 0;">We sent a 6-digit code to <strong id="verify-email-display"></strong></p>
+      <div class="verify-code-inputs">
+        <input type="text" id="verify-code-input" class="auth-input" placeholder="Enter 6-digit code" maxlength="6" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code" style="text-align:center;font-size:24px;letter-spacing:8px;font-weight:700;">
+      </div>
+      <div id="verify-error" class="auth-error"></div>
+      <button class="auth-btn gen-btn" onclick="verifyCode()">Verify & Log In</button>
+      <p class="auth-switch" style="margin-bottom:4px;">Didn't receive it? <a href="#" onclick="resendCode()">Resend code</a></p>
+      <p class="auth-switch"><a href="#" onclick="showLogin()">← Use a different email</a></p>
     </div>
   </div>
 </div>

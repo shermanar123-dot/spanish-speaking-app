@@ -50,7 +50,7 @@ async function api(path, options = {}) {
 // --- Tabs ---
 function showTab(id, el) {
   // Stop all TTS and sessions immediately when switching tabs
-  window.speechSynthesis.cancel();
+  cancelTTS();
   stopSessionRequested = true;
   isAutoPlaying = false;
   isRapidFire = false;
@@ -74,6 +74,9 @@ function showTab(id, el) {
 function showLogin() {
   document.getElementById('signup-form').style.display = 'none';
   document.getElementById('login-form').style.display = 'block';
+  document.getElementById('forgot-form').style.display = 'none';
+  document.getElementById('reset-form').style.display = 'none';
+  document.getElementById('verify-form').style.display = 'none';
   document.getElementById('login-error').textContent = '';
   document.getElementById('signup-error').textContent = '';
 }
@@ -81,10 +84,12 @@ function showLogin() {
 function showSignup() {
   document.getElementById('login-form').style.display = 'none';
   document.getElementById('signup-form').style.display = 'block';
+  document.getElementById('forgot-form').style.display = 'none';
+  document.getElementById('reset-form').style.display = 'none';
+  document.getElementById('verify-form').style.display = 'none';
   document.getElementById('login-error').textContent = '';
   document.getElementById('signup-error').textContent = '';
 }
-
 async function signup() {
   const email = document.getElementById('signup-email').value.trim();
   const password = document.getElementById('signup-password').value;
@@ -95,11 +100,52 @@ async function signup() {
   if (password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
 
   try {
-    document.querySelector('#signup-form .auth-btn').disabled = true;
+    const btn = document.querySelector('#signup-form .auth-btn');
+    btn.disabled = true;
+    btn.textContent = 'Signing up...';
+
     const data = await api('/api/auth/signup', {
       method: 'POST',
       body: JSON.stringify({ email, password })
     });
+    
+    if (data.success) {
+      // Show verify code form
+      document.getElementById('signup-form').style.display = 'none';
+      document.getElementById('verify-form').style.display = 'block';
+      document.getElementById('verify-email-display').textContent = data.email;
+      document.getElementById('verify-error').textContent = '';
+      document.getElementById('verify-code-input').value = '';
+      document.getElementById('verify-code-input').focus();
+      // Store email for verification
+      document.getElementById('verify-form').dataset.email = data.email;
+    }
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
+  const btn = document.querySelector('#signup-form .auth-btn');
+  btn.textContent = 'Sign Up';
+  btn.disabled = false;
+}
+
+async function verifyCode() {
+  const code = document.getElementById('verify-code-input').value.trim();
+  const email = document.getElementById('verify-form').dataset.email;
+  const errEl = document.getElementById('verify-error');
+  errEl.textContent = '';
+
+  if (!code || code.length !== 6) { errEl.textContent = 'Please enter the 6-digit code.'; return; }
+
+  try {
+    const btn = document.querySelector('#verify-form .auth-btn');
+    btn.disabled = true;
+    btn.textContent = 'Verifying...';
+
+    const data = await api('/api/auth/verify-code', {
+      method: 'POST',
+      body: JSON.stringify({ email, code })
+    });
+    
     if (data.success) {
       currentUser = data.user;
       document.getElementById('auth-overlay').style.display = 'none';
@@ -114,9 +160,27 @@ async function signup() {
   } catch (e) {
     errEl.textContent = e.message;
   }
-  document.querySelector('#signup-form .auth-btn').disabled = false;
+  const btn = document.querySelector('#verify-form .auth-btn');
+  btn.textContent = 'Verify & Log In';
+  btn.disabled = false;
 }
 
+async function resendCode() {
+  const email = document.getElementById('verify-form').dataset.email;
+  const errEl = document.getElementById('verify-error');
+  errEl.textContent = '';
+
+  try {
+    await api('/api/auth/resend-code', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+    errEl.style.color = 'var(--secondary)';
+    errEl.textContent = 'New code sent! Check your email.';
+    setTimeout(() => { errEl.style.color = ''; }, 3000);
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
 async function login() {
   const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
@@ -126,7 +190,10 @@ async function login() {
   if (!email || !password) { errEl.textContent = 'Email and password required.'; return; }
 
   try {
-    document.querySelector('#login-form .auth-btn').disabled = true;
+    const btn = document.querySelector('#login-form .auth-btn');
+    btn.disabled = true;
+    btn.textContent = 'Logging in...';
+
     const data = await api('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password })
@@ -140,11 +207,35 @@ async function login() {
       loadStatus();
     }
   } catch (e) {
+    // Check if the error response has needsVerification
+    try {
+      const resp = await fetch('/api/auth/login', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await resp.json();
+      if (data.needsVerification) {
+        // Show verify code form with existing user's email
+        document.getElementById('login-form').style.display = 'none';
+        document.getElementById('verify-form').style.display = 'block';
+        document.getElementById('verify-email-display').textContent = data.email;
+        document.getElementById('verify-error').textContent = '';
+        document.getElementById('verify-code-input').value = '';
+        document.getElementById('verify-code-input').focus();
+        document.getElementById('verify-form').dataset.email = data.email;
+        // The error was already shown via api() throwing, but that's fine
+        // Clear the auth overlay state
+        return;
+      }
+    } catch(_) {}
     errEl.textContent = e.message;
   }
-  document.querySelector('#login-form .auth-btn').disabled = false;
+  const btn = document.querySelector('#login-form .auth-btn');
+  btn.textContent = 'Log In';
+  btn.disabled = false;
 }
-
 async function logout() {
   try {
     await api('/api/auth/logout', { method: 'POST' });
@@ -580,7 +671,7 @@ async function sendAssessmentMsg() {
 // --- Drills ---
 function stopSession() {
   stopSessionRequested = true;
-  window.speechSynthesis.cancel();
+  cancelTTS();
 }
 
 async function autoPlayDrills() {
@@ -887,6 +978,12 @@ async function sendRpMsg() {
 let cachedSpanishVoice = null;
 let audioCache = {};
 
+// TTS queue: cancels any in-flight request/playback and queues the latest
+let currentAudio = null;       // current <Audio> element playing
+let currentAbort = null;       // AbortController for current fetch
+let currentUtterance = null;   // current SpeechSynthesisUtterance
+let speakPending = false;      // true while a speakText call is in flight
+
 function findBestSpanishVoice() {
   const voices = window.speechSynthesis.getVoices();
   const preferred = ['Google español', 'Google es-ES', 'Microsoft Helena', 'Microsoft Laura', 'Microsoft Sabina'];
@@ -922,72 +1019,119 @@ if (window.speechSynthesis) {
   };
 }
 
-// Track if cloud TTS is available (set after first attempt)
-let cloudTTSAvailable = null; // null = unknown, true/false = known
+// Cancel any in-flight TTS (cloud or Web Speech)
+function cancelTTS() {
+  // Abort cloud fetch
+  if (currentAbort) {
+    currentAbort.abort();
+    currentAbort = null;
+  }
+  // Stop cloud audio playback
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.onended = null;
+    currentAudio.onerror = null;
+    if (currentAudio.src) URL.revokeObjectURL(currentAudio.src);
+    currentAudio = null;
+  }
+  // Stop Web Speech
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
+  currentUtterance = null;
+  speakPending = false;
+}
 
 // Play audio from a blob URL
 function playAudioBlob(blobUrl, onEnd) {
   const audio = new Audio(blobUrl);
   audio.volume = 1.0;
+  currentAudio = audio;
   audio.onended = () => {
     URL.revokeObjectURL(blobUrl);
+    currentAudio = null;
+    speakPending = false;
     if (onEnd) onEnd();
   };
   audio.onerror = (e) => {
     console.error('Audio playback error:', e);
     URL.revokeObjectURL(blobUrl);
+    currentAudio = null;
+    speakPending = false;
     if (onEnd) onEnd();
   };
   audio.play().catch(e => {
     console.error('Audio play failed:', e);
+    currentAudio = null;
+    speakPending = false;
     if (onEnd) onEnd();
   });
 }
 
 // Try cloud TTS first, fall back to Web Speech
+// Each call cancels any previous in-flight TTS (fixes double-click)
 async function speakText(text, onEnd = null) {
+  // Cancel anything currently playing or in-flight
+  cancelTTS();
+
   const cleanText = text.split("CORRECTION:")[0].trim();
   if (!cleanText) { if (onEnd) onEnd(); return; }
-  
+
+  speakPending = true;
+
   // Try cloud TTS if not ruled out
   if (cloudTTSAvailable !== false) {
+    currentAbort = new AbortController();
     try {
       const resp = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: cleanText }),
+        signal: currentAbort.signal,
       });
-      
+
+      // If cancelled during fetch, bail out
+      if (!speakPending) { if (onEnd) onEnd(); return; }
+
       const contentType = resp.headers.get('content-type') || '';
-      
+
       if (contentType.includes('audio/mpeg') || contentType.includes('audio/')) {
-        // Success — got audio back
         cloudTTSAvailable = true;
+        currentAbort = null;
         const blob = await resp.blob();
+        if (!speakPending) { if (onEnd) onEnd(); return; }
         const blobUrl = URL.createObjectURL(blob);
         playAudioBlob(blobUrl, onEnd);
         return;
       }
-      
-      // Got JSON response — check if fallback
+
+      // Got JSON — check if fallback
       const data = await resp.json();
       if (data.fallback) {
         cloudTTSAvailable = false;
         // Fall through to Web Speech
       } else {
         cloudTTSAvailable = true;
+        speakPending = false;
         if (onEnd) onEnd();
         return;
       }
     } catch (e) {
+      if (e.name === 'AbortError') {
+        // Cancelled by double-click — that's fine
+        speakPending = false;
+        if (onEnd) onEnd();
+        return;
+      }
       console.warn('Cloud TTS failed, using Web Speech:', e);
       cloudTTSAvailable = false;
     }
+    currentAbort = null;
   }
-  
+
   // Fallback: Web Speech API
-  if (!window.speechSynthesis) { if (onEnd) onEnd(); return; }
-  window.speechSynthesis.cancel();
+  if (!window.speechSynthesis) { speakPending = false; if (onEnd) onEnd(); return; }
+
   const utterance = new SpeechSynthesisUtterance(cleanText);
   utterance.lang = 'es-ES';
   utterance.rate = 0.9;
@@ -995,9 +1139,140 @@ async function speakText(text, onEnd = null) {
   if (cachedSpanishVoice) {
     utterance.voice = cachedSpanishVoice;
   }
-  if (onEnd) utterance.onend = onEnd;
+  currentUtterance = utterance;
+  utterance.onend = () => {
+    currentUtterance = null;
+    speakPending = false;
+    if (onEnd) onEnd();
+  };
   window.speechSynthesis.speak(utterance);
+}
+
+// --- Forgot & Reset Password ---
+function showForgotPassword() {
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('signup-form').style.display = 'none';
+  document.getElementById('forgot-form').style.display = 'block';
+  document.getElementById('reset-form').style.display = 'none';
+  document.getElementById('forgot-error').textContent = '';
+  document.getElementById('forgot-success').style.display = 'none';
+  document.getElementById('forgot-email').value = '';
+}
+
+// Check for reset token in URL on page load
+function checkResetToken() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+  if (!token) return;
+
+  // Verify token is valid
+  fetch('/api/auth/verify-reset-token?token=' + encodeURIComponent(token))
+    .then(r => r.json())
+    .then(data => {
+      if (data.valid) {
+        document.getElementById('auth-overlay').style.display = 'flex';
+        document.getElementById('login-form').style.display = 'none';
+        document.getElementById('forgot-form').style.display = 'none';
+        document.getElementById('reset-form').style.display = 'block';
+        document.getElementById('reset-error').textContent = '';
+        document.getElementById('reset-success').style.display = 'none';
+        // Store token for submission
+        document.getElementById('reset-form').dataset.token = token;
+        // Clean URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    })
+    .catch(() => {});
+}
+
+async function sendResetLink() {
+  const email = document.getElementById('forgot-email').value.trim();
+  const errEl = document.getElementById('forgot-error');
+  const successEl = document.getElementById('forgot-success');
+  errEl.textContent = '';
+  successEl.style.display = 'none';
+
+  if (!email) { errEl.textContent = 'Please enter your email.'; return; }
+
+  try {
+    const btn = document.querySelector('#forgot-form .auth-btn');
+    btn.disabled = true;
+    btn.textContent = 'Sending...';
+
+    const data = await api('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+
+    if (data.success && data.token) {
+      // Show the reset link to the user
+      const resetLink = window.location.origin + '/?token=' + data.token;
+      successEl.style.display = 'block';
+      successEl.innerHTML = data.message + '<br><br>' +
+        '<div class="reset-link-box">' +
+        '<input type="text" readonly value="' + resetLink + '" class="reset-link-input" onclick="this.select()">' +
+        '<button class="gen-btn" style="margin-top:8px;padding:6px 16px;font-size:13px;" onclick="navigator.clipboard.writeText(\'' + resetLink + '\');this.textContent=\'Copied!\'">Copy Link</button>' +
+        '</div>' +
+        '<p style="font-size:12px;color:var(--text-muted);margin-top:8px;">This link expires in 1 hour.</p>';
+      btn.textContent = 'Send Reset Link';
+      btn.disabled = false;
+    } else {
+      errEl.textContent = data.message || 'Something went wrong.';
+      btn.textContent = 'Send Reset Link';
+      btn.disabled = false;
+    }
+  } catch (e) {
+    errEl.textContent = e.message;
+    const btn = document.querySelector('#forgot-form .auth-btn');
+    btn.textContent = 'Send Reset Link';
+    btn.disabled = false;
+  }
+}
+
+async function submitResetPassword() {
+  const newPw = document.getElementById('reset-password').value;
+  const confirmPw = document.getElementById('reset-password-confirm').value;
+  const errEl = document.getElementById('reset-error');
+  const successEl = document.getElementById('reset-success');
+  errEl.textContent = '';
+  successEl.style.display = 'none';
+
+  if (!newPw || newPw.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
+  if (newPw !== confirmPw) { errEl.textContent = 'Passwords do not match.'; return; }
+
+  const token = document.getElementById('reset-form').dataset.token;
+  if (!token) { errEl.textContent = 'Missing reset token. Please request a new reset link.'; return; }
+
+  try {
+    const btn = document.querySelector('#reset-form .auth-btn');
+    btn.disabled = true;
+    btn.textContent = 'Resetting...';
+
+    const data = await api('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password: newPw })
+    });
+
+    if (data.success) {
+      successEl.style.display = 'block';
+      successEl.textContent = data.message;
+      btn.style.display = 'none';
+      // Show login option
+      document.getElementById('reset-form').querySelector('.auth-switch').innerHTML =
+        '<a href="#" onclick="showLogin()">← Go to login</a>';
+    } else {
+      errEl.textContent = data.error || 'Failed to reset password.';
+      btn.textContent = 'Reset Password';
+      btn.disabled = false;
+    }
+  } catch (e) {
+    errEl.textContent = e.message;
+    const btn = document.querySelector('#reset-form .auth-btn');
+    btn.textContent = 'Reset Password';
+    btn.disabled = false;
+  }
 }
 
 // --- Init ---
 checkAuth();
+checkResetToken();

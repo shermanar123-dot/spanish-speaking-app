@@ -62,6 +62,37 @@ const db = new sqlite3.Database(dbPath, (err) => {
           db.run("INSERT OR IGNORE INTO progress (user_id, total_minutes, drills_done, streak, last_active) VALUES (1, 0, 0, 0, date('now'))");
         }
       });
+
+      // Password reset tokens table
+      db.run(`CREATE TABLE IF NOT EXISTS reset_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        expires_at DATETIME NOT NULL,
+        used INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (id)
+      )`);
+
+      // Email verification codes table
+      db.run(`CREATE TABLE IF NOT EXISTS verification_codes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL,
+        code TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        username TEXT,
+        expires_at DATETIME NOT NULL,
+        used INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      // Add verified column to users table (safe migration)
+      db.run("ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0", () => {});
+
+      // Set existing users as already verified so they're not locked out
+      db.run("UPDATE users SET email_verified = 1 WHERE email_verified IS NULL", (err) => {
+        if (!err) console.log('✓ Existing users set as email verified');
+      });
     });
   }
 });
