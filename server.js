@@ -448,6 +448,28 @@ app.post('/api/admin/delete-user', requireAuth, async (req, res) => {
   }
 });
 
+// Bootstrap: make current user an admin (only works if no admin exists)
+app.post('/api/admin/bootstrap', requireAuth, async (req, res) => {
+  try {
+    const adminCount = await new Promise((resolve, reject) => {
+      db.get('SELECT COUNT(*) as cnt FROM users WHERE is_admin = 1', [], (err, row) => {
+        if (err) reject(err);
+        else resolve(row ? row.cnt : 0);
+      });
+    });
+    if (adminCount > 0) {
+      return res.status(403).json({ error: 'Admin already exists.' });
+    }
+    db.run('UPDATE users SET is_admin = 1, is_paid = 1 WHERE id = ?', [req.session.userId]);
+    req.session.isAdmin = true;
+    req.session.isPaid = true;
+    res.json({ success: true, message: 'You are now admin.' });
+  } catch (err) {
+    console.error('Bootstrap error:', err);
+    res.status(500).json({ error: 'Failed to bootstrap admin.' });
+  }
+});
+
 // Logout
 app.post('/api/auth/logout', (req, res) => {
   req.session.destroy((err) => {
