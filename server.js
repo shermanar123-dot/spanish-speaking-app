@@ -471,6 +471,51 @@ app.post('/api/roleplay', requireAuth, async (req, res) => {
   }
 });
 
+// ---- TTS (Text-to-Speech) using OpenAI ---- //
+app.post('/api/tts', requireAuth, async (req, res) => {
+  const { text, voice: voiceOpt } = req.body;
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: 'Text is required.' });
+  }
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+  if (!OPENAI_API_KEY) {
+    // Fallback: return a signal for the client to use Web Speech API
+    return res.json({ fallback: true });
+  }
+  try {
+    const voice = voiceOpt || 'nova'; // 'nova' is warm & natural in Spanish
+    const resp = await fetch('https://api.openai.com/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'tts-1-hd',
+        input: text,
+        voice: voice,
+        response_format: 'mp3',
+        speed: 0.95,
+      }),
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error('OpenAI TTS error:', resp.status, errText);
+      return res.json({ fallback: true });
+    }
+    // Stream the audio back
+    const audioBuffer = await resp.arrayBuffer();
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Length': audioBuffer.byteLength,
+    });
+    res.send(Buffer.from(audioBuffer));
+  } catch (err) {
+    console.error('TTS error:', err);
+    res.json({ fallback: true });
+  }
+});
+
 // Admin routes (protected by basic auth)
 app.get('/api/admin/users', requireAdmin, (req, res) => {
   db.all('SELECT id, email, username, is_paid, created_at FROM users ORDER BY created_at DESC', [], (err, users) => {

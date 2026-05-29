@@ -883,8 +883,9 @@ async function sendRpMsg() {
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// --- Speech ---
+// --- Speech (with cloud TTS fallback) ---
 let cachedSpanishVoice = null;
+let audioCache = {};
 
 function findBestSpanishVoice() {
   const voices = window.speechSynthesis.getVoices();
@@ -921,10 +922,72 @@ if (window.speechSynthesis) {
   };
 }
 
-function speakText(text, onEnd = null) {
-  if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
+// Track if cloud TTS is available (set after first attempt)
+let cloudTTSAvailable = null; // null = unknown, true/false = known
+
+// Play audio from a blob URL
+function playAudioBlob(blobUrl, onEnd) {
+  const audio = new Audio(blobUrl);
+  audio.volume = 1.0;
+  audio.onended = () => {
+    URL.revokeObjectURL(blobUrl);
+    if (onEnd) onEnd();
+  };
+  audio.onerror = (e) => {
+    console.error('Audio playback error:', e);
+    URL.revokeObjectURL(blobUrl);
+    if (onEnd) onEnd();
+  };
+  audio.play().catch(e => {
+    console.error('Audio play failed:', e);
+    if (onEnd) onEnd();
+  });
+}
+
+// Try cloud TTS first, fall back to Web Speech
+async function speakText(text, onEnd = null) {
   const cleanText = text.split("CORRECTION:")[0].trim();
+  if (!cleanText) { if (onEnd) onEnd(); return; }
+  
+  // Try cloud TTS if not ruled out
+  if (cloudTTSAvailable !== false) {
+    try {
+      const resp = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: cleanText }),
+      });
+      
+      const contentType = resp.headers.get('content-type') || '';
+      
+      if (contentType.includes('audio/mpeg') || contentType.includes('audio/')) {
+        // Success — got audio back
+        cloudTTSAvailable = true;
+        const blob = await resp.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        playAudioBlob(blobUrl, onEnd);
+        return;
+      }
+      
+      // Got JSON response — check if fallback
+      const data = await resp.json();
+      if (data.fallback) {
+        cloudTTSAvailable = false;
+        // Fall through to Web Speech
+      } else {
+        cloudTTSAvailable = true;
+        if (onEnd) onEnd();
+        return;
+      }
+    } catch (e) {
+      console.warn('Cloud TTS failed, using Web Speech:', e);
+      cloudTTSAvailable = false;
+    }
+  }
+  
+  // Fallback: Web Speech API
+  if (!window.speechSynthesis) { if (onEnd) onEnd(); return; }
+  window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(cleanText);
   utterance.lang = 'es-ES';
   utterance.rate = 0.9;
