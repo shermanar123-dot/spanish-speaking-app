@@ -406,6 +406,48 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Admin: delete user by email
+app.post('/api/admin/delete-user', requireAuth, async (req, res) => {
+  try {
+    // Check if requester is admin
+    const adminUser = await new Promise((resolve, reject) => {
+      db.get('SELECT is_admin FROM users WHERE id = ?', [req.session.userId], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    if (!adminUser || !adminUser.is_admin) {
+      return res.status(403).json({ error: 'Admin access required.' });
+    }
+
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required.' });
+
+    const emailLower = email.toLowerCase();
+    const user = await new Promise((resolve, reject) => {
+      db.get('SELECT id FROM users WHERE email = ?', [emailLower], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+
+    if (!user) return res.status(404).json({ error: 'User not found.' });
+
+    // Delete related records
+    db.run('DELETE FROM progress WHERE user_id = ?', [user.id]);
+    db.run('DELETE FROM mistakes WHERE user_id = ?', [user.id]);
+    db.run('DELETE FROM assessment_profiles WHERE user_id = ?', [user.id]);
+    db.run('DELETE FROM reset_tokens WHERE user_id = ?', [user.id]);
+    db.run('DELETE FROM verification_codes WHERE email = ?', [emailLower]);
+    db.run('DELETE FROM users WHERE id = ?', [user.id]);
+
+    res.json({ success: true, message: `User ${emailLower} deleted.` });
+  } catch (err) {
+    console.error('Delete user error:', err);
+    res.status(500).json({ error: 'Failed to delete user.' });
+  }
+});
+
 // Logout
 app.post('/api/auth/logout', (req, res) => {
   req.session.destroy((err) => {
