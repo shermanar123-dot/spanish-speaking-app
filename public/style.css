@@ -1066,6 +1066,14 @@ select:focus {
   transform: scale(0.95);
 }
 
+/* Speaker SVG icon */
+.speaker-svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  color: inherit;
+}
+
 .scenario-tag {
   display: inline-block;
   font-size: 12px;
@@ -1150,6 +1158,9 @@ select:focus {
   transition: transform 0.1s ease;
   margin-left: 4px;
   line-height: 1;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 2px;
 }
 .speaker-btn:hover {
   transform: scale(1.25);
