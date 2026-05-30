@@ -845,7 +845,7 @@ app.post('/api/tts', requireAuth, async (req, res) => {
   const cleaned = text.split("CORRECTION:")[0].trim();
   if (!cleaned) return res.json({ fallback: true });
 
-  const voice = voiceOpt || 'alloy'; // 'alloy' is clearer for Spanish than 'nova'
+  const voice = voiceOpt || 'nova'; // 'nova' is the best OpenAI voice for Spanish
   const cacheKey = `${voice}:${cleaned}`;
 
   // Check cache

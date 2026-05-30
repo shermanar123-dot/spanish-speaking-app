@@ -1082,8 +1082,8 @@ async function speakText(text, onEnd = null) {
 
   speakPending = true;
 
-  // Try cloud TTS if not ruled out and not iOS (iOS blocks audio.play() in async contexts)
-if (cloudTTSAvailable !== false && !isIOS()) {
+  // Try cloud TTS
+if (cloudTTSAvailable !== false) {
     currentAbort = new AbortController();
     try {
       const resp = await fetch('/api/tts', {
